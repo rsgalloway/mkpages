@@ -97,14 +97,28 @@ class GenerationTests(unittest.TestCase):
         self.assertTrue((self.output_dir / "assets" / "site.css").exists())
         self.assertTrue((self.output_dir / "guide" / "index.md").exists())
         self.assertTrue((self.output_dir / "images" / "logo.png").exists())
+        self.assertTrue((self.output_dir / "_includes" / "site_footer.html").exists())
 
         home_page = (self.output_dir / "index.md").read_text(encoding="utf-8")
         guide_page = (self.output_dir / "guide" / "index.md").read_text(encoding="utf-8")
+        layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+        theme_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
+        config_text = (self.output_dir / "_config.yml").read_text(encoding="utf-8")
 
         self.assertIn("layout: default", home_page)
         self.assertIn('title: "Home"', home_page)
         self.assertIn("[Guide](guide/)", home_page)
         self.assertIn("![Logo](../images/logo.png)", guide_page)
+        self.assertIn('title: "mkpages-test-', config_text)
+        self.assertIn('className = "header-anchor"', layout_html)
+        self.assertIn('className = "copy-button"', layout_html)
+        self.assertIn('class="copy-icon"', layout_html)
+        self.assertIn('wrapper.classList.add("terminal")', layout_html)
+        self.assertNotIn("copy-status", layout_html)
+        self.assertIn(".header-anchor", theme_css)
+        self.assertIn(".copy-button", theme_css)
+        self.assertNotIn(".code-block.terminal::before", theme_css)
+        self.assertIn(".highlight .", theme_css)
 
     def test_generate_site_refuses_to_overwrite_unmarked_directory(self) -> None:
         self.output_dir.mkdir()

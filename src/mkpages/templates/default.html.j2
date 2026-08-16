@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{{ site.description }}">
+    <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const headings = document.querySelectorAll(".site-main h1, .site-main h2, .site-main h3");
+        for (const heading of headings) {
+          if (!heading.id || heading.querySelector(".header-anchor")) {
+            continue;
+          }
+
+          const anchor = document.createElement("a");
+          anchor.className = "header-anchor";
+          anchor.href = `#${encodeURIComponent(heading.id)}`;
+          anchor.setAttribute("aria-label", `Link to section: ${heading.textContent.trim()}`);
+          anchor.textContent = "#";
+          heading.appendChild(anchor);
+        }
+
+        const codeBlocks = document.querySelectorAll(".site-main pre");
+        for (const block of codeBlocks) {
+          if (block.parentElement && block.parentElement.classList.contains("code-block")) {
+            continue;
+          }
+
+          const wrapper = document.createElement("div");
+          wrapper.className = "code-block";
+          const languageContainer = block.closest("[class*='language-']");
+          if (
+            languageContainer &&
+            /(language-bash|language-shell|language-sh|language-console)/.test(
+              languageContainer.className
+            )
+          ) {
+            wrapper.classList.add("terminal");
+          }
+          block.parentNode.insertBefore(wrapper, block);
+          wrapper.appendChild(block);
+
+          const button = document.createElement("button");
+          button.className = "copy-button";
+          button.type = "button";
+          button.setAttribute("aria-label", "Copy code to clipboard");
+          button.title = "Copy code";
+          button.innerHTML = `
+            <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 9h10v10H9z"></path>
+              <path d="M5 5h10v2H7v8H5z"></path>
+            </svg>
+          `;
+          wrapper.appendChild(button);
+
+          button.addEventListener("click", async () => {
+            const text = block.innerText;
+            try {
+              await navigator.clipboard.writeText(text);
+              button.setAttribute("aria-label", "Copied");
+              button.title = "Copied";
+            } catch (error) {
+              button.setAttribute("aria-label", "Press Ctrl+C to copy");
+              button.title = "Press Ctrl+C to copy";
+            }
+            window.setTimeout(() => {
+              button.setAttribute("aria-label", "Copy code to clipboard");
+              button.title = "Copy code";
+            }, 1400);
+          });
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div class="site-shell">
+      {% include site_header.html %}
+      <main class="site-main">{{ content }}</main>
+      {% include site_footer.html %}
+    </div>
+  </body>
+</html>
