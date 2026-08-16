@@ -76,10 +76,29 @@ class GenerationTests(unittest.TestCase):
 
     def test_generate_site_writes_expected_tree(self) -> None:
         (self.content_root / "index.md").write_text(
-            "# Home\n\nSee [Guide](guide.md).\n", encoding="utf-8"
+            "# Home\n\n"
+            "## Featured\n\n"
+            ":::cards source=projects featured=true limit=1 columns=2\n"
+            ":::\n\n"
+            "See [Guide](guide.md).\n",
+            encoding="utf-8",
         )
         (self.content_root / "guide.md").write_text(
             "# Guide\n\n![Logo](images/logo.png)\n",
+            encoding="utf-8",
+        )
+        projects_dir = self.content_root / "projects"
+        projects_dir.mkdir()
+        (projects_dir / "envstack.md").write_text(
+            "---\n"
+            'title: "envstack"\n'
+            'description: "Layered environment configuration."\n'
+            "featured: true\n"
+            "tags:\n"
+            "  - python\n"
+            "  - tooling\n"
+            "---\n\n"
+            "# envstack\n",
             encoding="utf-8",
         )
         (self.content_root / "mkpages.yml").write_text(
@@ -101,7 +120,7 @@ class GenerationTests(unittest.TestCase):
 
         result = generate_site(self.content_root, self.output_dir)
 
-        self.assertEqual(result.pages_written, 2)
+        self.assertEqual(result.pages_written, 3)
         self.assertEqual(result.assets_copied, 1)
         self.assertTrue((self.output_dir / ".mkpages-output").exists())
         self.assertTrue((self.output_dir / "_config.yml").exists())
@@ -124,6 +143,10 @@ class GenerationTests(unittest.TestCase):
         self.assertIn("layout: default", home_page)
         self.assertIn('title: "Home"', home_page)
         self.assertIn("[Guide](guide/)", home_page)
+        self.assertIn('<div class="card-grid card-grid-2">', home_page)
+        self.assertIn('<article class="content-card">', home_page)
+        self.assertIn('<a href="/projects/envstack/">envstack</a>', home_page)
+        self.assertIn('<span class="card-tag">python</span>', home_page)
         self.assertIn("![Logo](../images/logo.png)", guide_page)
         self.assertIn('title: "Test Docs"', config_text)
         self.assertIn('description: "Test site description"', config_text)

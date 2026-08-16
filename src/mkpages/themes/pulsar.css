@@ -292,6 +292,61 @@ table {
   border-collapse: collapse;
 }
 
+.card-grid {
+  display: grid;
+  gap: 1.2rem;
+  margin: 1.5rem 0;
+}
+
+.card-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.content-card {
+  padding: 1.1rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(18, 18, 31, 0.86);
+}
+
+.content-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.08rem;
+}
+
+.content-card h3 a {
+  color: var(--text);
+}
+
+.content-card p {
+  margin: 0;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.card-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.56rem;
+  border-radius: 999px;
+  background: rgba(108, 140, 255, 0.1);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+}
+
 .mermaid {
   margin: 1.3rem 0;
   overflow-x: auto;
@@ -330,4 +385,12 @@ th { color: var(--text); }
 
 *::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
+}
+
+@media (max-width: 720px) {
+  .card-grid-2,
+  .card-grid-3,
+  .card-grid-4 {
+    grid-template-columns: 1fr;
+  }
 }

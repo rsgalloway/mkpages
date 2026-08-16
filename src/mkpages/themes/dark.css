@@ -269,6 +269,61 @@ table {
   border-collapse: collapse;
 }
 
+.card-grid {
+  display: grid;
+  gap: 1rem;
+  margin: 1.4rem 0;
+}
+
+.card-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.content-card {
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.82);
+}
+
+.content-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+}
+
+.content-card h3 a {
+  color: var(--text);
+}
+
+.content-card p {
+  margin: 0;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+}
+
+.card-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(99, 179, 237, 0.12);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+}
+
 .mermaid {
   margin: 1.2rem 0;
   overflow-x: auto;
@@ -313,4 +368,9 @@ th {
 @media (max-width: 720px) {
   body { padding: 18px 10px 36px; }
   .site-shell { padding: 22px 18px 28px; }
+  .card-grid-2,
+  .card-grid-3,
+  .card-grid-4 {
+    grid-template-columns: 1fr;
+  }
 }

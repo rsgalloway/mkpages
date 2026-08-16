@@ -42,6 +42,11 @@ MARKDOWN_LINK_RE = re.compile(r"(?P<prefix>!?\[[^\]]*\]\()(?P<target>[^)]+)(?P<s
 H1_RE = re.compile(r"^#\s+(?P<title>.+?)\s*$", re.MULTILINE)
 FRONT_MATTER_RE = re.compile(r"\A---\s*\n(?P<front>.*?)\n---\s*\n?", re.DOTALL)
 FRONT_MATTER_KEY_RE = re.compile(r"^(?P<key>[A-Za-z_][A-Za-z0-9_-]*)\s*:", re.MULTILINE)
+CARDS_DIRECTIVE_RE = re.compile(
+    r"^:::(?P<name>cards)(?P<args>[^\n]*)\n(?P<body>.*?)^:::\s*$",
+    re.MULTILINE | re.DOTALL,
+)
+DIRECTIVE_ARG_RE = re.compile(r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)=(?P<value>\S+)")
 
 
 class MkpagesError(RuntimeError):
@@ -92,12 +97,23 @@ class SiteConfig:
     navigation: tuple[NavigationItem, ...] = ()
 
 
+@dataclass(frozen=True)
+class ContentEntry:
+    """Represents front-matter-backed content that can feed directives."""
+
+    page: Page
+    title: str
+    description: str
+    metadata: dict[str, object]
+
+
 def generate_site(
     content_root: Path, output_dir: Path, explicit_theme: str | Path | None = None
 ) -> GenerationResult:
     """Generate a Jekyll source tree from a markdown content root."""
     markdown_files = find_markdown_files(content_root)
     page_map = build_page_map(markdown_files)
+    content_index = build_content_index(content_root, page_map)
     site_config = load_site_config(content_root)
     site_title = site_config.title or infer_site_title(content_root)
 
@@ -113,7 +129,7 @@ def generate_site(
 
     pages_written = 0
     for page in page_map.values():
-        write_page(content_root, output_dir, page, page_map)
+        write_page(content_root, output_dir, page, page_map, content_index)
         pages_written += 1
 
     assets_copied = copy_non_markdown_files(content_root, output_dir)
@@ -431,23 +447,62 @@ def infer_site_title(content_root: Path) -> str:
     return root_name or "mkpages"
 
 
+def build_content_index(
+    content_root: Path, page_map: dict[PurePosixPath, Page]
+) -> dict[str, tuple[ContentEntry, ...]]:
+    """Build a simple index of front-matter-backed content by top-level folder."""
+    index: dict[str, list[ContentEntry]] = {}
+    for source_rel, page in page_map.items():
+        if source_rel.name == "index.md":
+            continue
+        if not source_rel.parts:
+            continue
+
+        source_path = content_root / Path(source_rel)
+        front_matter, body = split_front_matter(source_path.read_text(encoding="utf-8"))
+        metadata = parse_front_matter(front_matter)
+        title = str(metadata.get("title") or extract_title(body, fallback_title(source_rel)))
+        description = str(metadata.get("description") or metadata.get("excerpt") or "")
+        entry = ContentEntry(page=page, title=title, description=description, metadata=metadata)
+        index.setdefault(source_rel.parts[0], []).append(entry)
+
+    for key, entries in index.items():
+        index[key] = sorted(entries, key=content_entry_sort_key)
+    return {key: tuple(entries) for key, entries in index.items()}
+
+
+def content_entry_sort_key(entry: ContentEntry) -> tuple[object, ...]:
+    """Sort entries for directive rendering."""
+    order = entry.metadata.get("order")
+    date = str(entry.metadata.get("date") or "")
+    return (
+        0 if isinstance(order, int) else 1,
+        order if isinstance(order, int) else 0,
+        -1 if date else 0,
+        date,
+        entry.title.lower(),
+    )
+
+
 def write_page(
     content_root: Path,
     output_dir: Path,
     page: Page,
     page_map: dict[PurePosixPath, Page],
+    content_index: dict[str, tuple[ContentEntry, ...]],
 ) -> None:
     """Generate one markdown page with front matter and rewritten local links."""
     source_path = content_root / Path(page.source_rel)
     raw_content = source_path.read_text(encoding="utf-8")
     front_matter, body = split_front_matter(raw_content)
     rewritten_body = rewrite_local_links(body, page, page_map)
+    expanded_body = expand_directives(rewritten_body, content_index)
 
     front_matter_text = ensure_front_matter(
         front_matter,
-        title=extract_title(rewritten_body, fallback_title(page.source_rel)),
+        title=extract_title(expanded_body, fallback_title(page.source_rel)),
     )
-    rendered = front_matter_text + "\n" + rewritten_body.lstrip("\n")
+    rendered = front_matter_text + "\n" + expanded_body.lstrip("\n")
 
     destination = output_dir / Path(page.output_rel)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -462,6 +517,62 @@ def split_front_matter(content: str) -> tuple[str | None, str]:
     return match.group("front"), content[match.end() :]
 
 
+def parse_front_matter(front_matter: str | None) -> dict[str, object]:
+    """Parse the small YAML subset used in markdown front matter."""
+    if not front_matter:
+        return {}
+
+    result: dict[str, object] = {}
+    lines = front_matter.splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        stripped = line.strip()
+        index += 1
+        if not stripped or stripped.startswith("#"):
+            continue
+        if line.startswith((" ", "\t")):
+            continue
+
+        key, separator, value = stripped.partition(":")
+        if not separator:
+            continue
+        key = key.strip()
+        value = value.strip()
+        if not value:
+            items: list[str] = []
+            while index < len(lines):
+                nested = lines[index]
+                nested_stripped = nested.strip()
+                if not nested_stripped or nested_stripped.startswith("#"):
+                    index += 1
+                    continue
+                if not nested.startswith("  - "):
+                    break
+                items.append(strip_yaml_scalar(nested_stripped[2:].strip()))
+                index += 1
+            result[key] = items
+            continue
+
+        result[key] = parse_scalar_value(strip_yaml_scalar(value))
+    return result
+
+
+def parse_scalar_value(value: str) -> object:
+    """Parse a simple YAML scalar into a small Python value."""
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    if re.fullmatch(r"-?\d+", value):
+        try:
+            return int(value)
+        except ValueError:
+            return value
+    return value
+
+
 def ensure_front_matter(front_matter: str | None, title: str) -> str:
     """Return front matter that guarantees layout and title keys."""
     if not front_matter:
@@ -474,6 +585,82 @@ def ensure_front_matter(front_matter: str | None, title: str) -> str:
     if "title" not in keys:
         lines.append(f"title: {json.dumps(title)}")
     return "---\n" + "\n".join(lines) + "\n---\n"
+
+
+def expand_directives(content: str, content_index: dict[str, tuple[ContentEntry, ...]]) -> str:
+    """Expand supported mkpages directives into HTML blocks."""
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group("name")
+        if name != "cards":
+            return match.group(0)
+        args = parse_directive_args(match.group("args"))
+        return render_cards_directive(args, content_index)
+
+    return CARDS_DIRECTIVE_RE.sub(replace, content)
+
+
+def parse_directive_args(raw_args: str) -> dict[str, str]:
+    """Parse key=value directive arguments from a single line."""
+    return {
+        match.group("key"): match.group("value") for match in DIRECTIVE_ARG_RE.finditer(raw_args)
+    }
+
+
+def render_cards_directive(
+    args: dict[str, str], content_index: dict[str, tuple[ContentEntry, ...]]
+) -> str:
+    """Render a simple cards grid from indexed content."""
+    source = args.get("source", "").strip().strip("\"'")
+    if not source:
+        raise MkpagesError(":::cards requires source=...")
+
+    entries = list(content_index.get(source, ()))
+    if parse_bool_arg(args.get("featured")):
+        entries = [entry for entry in entries if bool(entry.metadata.get("featured"))]
+
+    limit = parse_int_arg(args.get("limit"))
+    if limit is not None:
+        entries = entries[:limit]
+
+    columns = parse_int_arg(args.get("columns")) or 2
+    columns = max(1, min(columns, 4))
+
+    lines = [f'<div class="card-grid card-grid-{columns}">']
+    for entry in entries:
+        description = escape_html(entry.description)
+        title = escape_html(entry.title)
+        href = escape_html(entry.page.route_url)
+        tags = entry.metadata.get("tags")
+        lines.append('  <article class="content-card">')
+        lines.append(f'    <h3><a href="{href}">{title}</a></h3>')
+        if description:
+            lines.append(f"    <p>{description}</p>")
+        if isinstance(tags, list) and tags:
+            tag_markup = " ".join(
+                f'<span class="card-tag">{escape_html(str(tag))}</span>' for tag in tags[:3]
+            )
+            lines.append(f'    <div class="card-tags">{tag_markup}</div>')
+        lines.append("  </article>")
+    lines.append("</div>")
+    return "\n".join(lines)
+
+
+def parse_bool_arg(value: str | None) -> bool:
+    """Parse an optional boolean directive argument."""
+    if value is None:
+        return False
+    return value.strip().strip("\"'").lower() == "true"
+
+
+def parse_int_arg(value: str | None) -> int | None:
+    """Parse an optional integer directive argument."""
+    if value is None:
+        return None
+    stripped = value.strip().strip("\"'")
+    if not re.fullmatch(r"\d+", stripped):
+        return None
+    return int(stripped)
 
 
 def extract_title(content: str, fallback: str) -> str:
