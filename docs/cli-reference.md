@@ -23,13 +23,20 @@ Choose the generated Jekyll source directory. The default is `.mkpages`.
 
 ### `--theme`
 
-Provide a CSS file to use as the generated site stylesheet.
+Provide either a bundled theme name or a CSS file path to use as the generated
+site stylesheet.
 
 Theme precedence is:
 
 1. `theme.css` at the content root
-2. `--theme PATH`
+2. `--theme NAME_OR_PATH`
 3. bundled default theme
+
+Bundled themes:
+
+- `default`
+- `dark`
+- `minimal`
 
 ### `serve`
 
@@ -76,6 +83,12 @@ Use an explicit theme:
 
 ```bash
 mkpages build docs/ --output .mkpages --theme ./custom.css
+```
+
+Use a bundled dark theme:
+
+```bash
+mkpages build docs/ --theme dark
 ```
 
 Preview the generated site locally through Jekyll:

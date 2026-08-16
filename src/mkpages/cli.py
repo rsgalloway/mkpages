@@ -10,6 +10,7 @@ import threading
 import webbrowser
 from pathlib import Path
 
+from mkpages import __version__
 from mkpages.generator import MkpagesError, OUTPUT_MARKER, generate_site
 
 DEFAULT_OUTPUT_DIR = Path(".mkpages")
@@ -43,7 +44,7 @@ def add_version_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--version",
         action="version",
-        version="mkpages 0.1.0",
+        version=f"mkpages {__version__}",
     )
 
 

@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path, PurePosixPath
 from unittest import mock
 
-from mkpages import cli
+from mkpages import __version__, cli
 from mkpages.generator import (
     MkpagesError,
     OUTPUT_MARKER,
@@ -125,6 +125,22 @@ class GenerationTests(unittest.TestCase):
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         self.assertIn("color: red", site_css)
 
+    def test_bundled_named_theme_can_be_selected(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir, explicit_theme="dark")
+
+        site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
+        self.assertIn("--bg: #0d1117;", site_css)
+
+    def test_invalid_theme_name_mentions_bundled_choices(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        with self.assertRaises(MkpagesError) as ctx:
+            generate_site(self.content_root, self.output_dir, explicit_theme="nope")
+
+        self.assertIn("Built-in themes: dark, default, minimal", str(ctx.exception))
+
     def test_generate_site_ignores_files_outside_content_root(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
         repo_root_file = self.tempdir / "README.md"
@@ -158,6 +174,16 @@ class CliTests(unittest.TestCase):
     def test_main_requires_subcommand(self) -> None:
         status = cli.main([])
         self.assertEqual(status, 2)
+
+    def test_root_parser_uses_package_version(self) -> None:
+        parser = cli.build_root_parser()
+
+        with self.assertRaises(SystemExit) as ctx:
+            parser.parse_args(["--version"])
+
+        self.assertEqual(ctx.exception.code, 0)
+        version_action = next(action for action in parser._actions if action.dest == "version")
+        self.assertEqual(version_action.version, f"mkpages {__version__}")
 
     def test_run_serve_requires_jekyll(self) -> None:
         parser = cli.build_serve_parser()

@@ -1,0 +1,155 @@
+:root {
+  --bg: #0d1117;
+  --panel: rgba(18, 24, 34, 0.94);
+  --border: #2d3748;
+  --text: #edf2f7;
+  --muted: #a0aec0;
+  --accent: #63b3ed;
+  --accent-strong: #90cdf4;
+  --code: #111827;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top right, rgba(99, 179, 237, 0.16), transparent 28%),
+    linear-gradient(180deg, #0a0f14 0%, var(--bg) 100%);
+  color: var(--text);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  line-height: 1.72;
+}
+
+body { padding: 30px 18px 56px; }
+
+a {
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+a:hover {
+  color: #bee3f8;
+  text-decoration: underline;
+}
+
+.site-shell {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 28px 30px 44px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.site-header,
+.site-footer {
+  display: flex;
+  align-items: center;
+}
+
+.site-header { margin-bottom: 34px; }
+
+.site-footer {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.site-brand {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.site-main h1:first-child { margin-top: 0; }
+
+h1, h2, h3 {
+  color: var(--text);
+  line-height: 1.12;
+}
+
+h1 {
+  font-size: clamp(2.1rem, 5vw, 3.5rem);
+  margin-bottom: 0.85rem;
+}
+
+h2 {
+  font-size: 1.55rem;
+  margin-top: 2.7rem;
+}
+
+h3 {
+  font-size: 1.16rem;
+  margin-top: 1.7rem;
+}
+
+p, li {
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+strong { color: var(--text); }
+
+code, pre {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+code {
+  padding: 0.14rem 0.38rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+pre {
+  overflow-x: auto;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--code);
+}
+
+pre code {
+  padding: 0;
+  background: transparent;
+}
+
+blockquote {
+  margin: 1.6rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  border-left: 4px solid var(--accent);
+  color: var(--text);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+th {
+  background: rgba(99, 179, 237, 0.12);
+}
+
+@media (max-width: 720px) {
+  body { padding: 18px 10px 36px; }
+  .site-shell { padding: 22px 18px 28px; }
+}

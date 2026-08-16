@@ -18,6 +18,11 @@ except ImportError:  # pragma: no cover
 
 OUTPUT_MARKER = ".mkpages-output"
 DEFAULT_THEME_RESOURCE = "themes/default.css"
+BUNDLED_THEMES = {
+    "default": "themes/default.css",
+    "dark": "themes/dark.css",
+    "minimal": "themes/minimal.css",
+}
 EXCLUDED_NAMES = {
     ".git",
     ".github",
@@ -64,7 +69,7 @@ class GenerationResult:
 
 
 def generate_site(
-    content_root: Path, output_dir: Path, explicit_theme: Path | None = None
+    content_root: Path, output_dir: Path, explicit_theme: str | Path | None = None
 ) -> GenerationResult:
     """Generate a Jekyll source tree from a markdown content root."""
     markdown_files = find_markdown_files(content_root)
@@ -237,18 +242,30 @@ def write_theme(output_dir: Path, theme_path: Path) -> None:
     shutil.copyfile(theme_path, assets_dir / "site.css")
 
 
-def resolve_theme(content_root: Path, explicit_theme: Path | None) -> Path:
+def resolve_theme(content_root: Path, explicit_theme: str | Path | None) -> Path:
     """Resolve the theme according to mkpages precedence rules."""
     root_theme = content_root / "theme.css"
     if root_theme.exists():
         return root_theme
     if explicit_theme is not None:
-        theme_path = explicit_theme.expanduser()
+        theme_name = str(explicit_theme).strip().lower()
+        if theme_name in BUNDLED_THEMES:
+            return bundled_theme_path(theme_name)
+
+        theme_path = Path(explicit_theme).expanduser()
         if not theme_path.exists():
-            raise MkpagesError(f"theme file does not exist: {theme_path}")
+            choices = ", ".join(sorted(BUNDLED_THEMES))
+            raise MkpagesError(
+                f"theme file does not exist: {theme_path}. Built-in themes: {choices}"
+            )
         return theme_path
 
-    resource = files("mkpages").joinpath(DEFAULT_THEME_RESOURCE)
+    return bundled_theme_path("default")
+
+
+def bundled_theme_path(name: str) -> Path:
+    """Return the installed resource path for a bundled theme."""
+    resource = files("mkpages").joinpath(BUNDLED_THEMES[name])
     return Path(str(resource))
 
 
