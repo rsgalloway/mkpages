@@ -1,0 +1,445 @@
+"""Site generation primitives for mkpages."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+from typing import Iterable
+
+try:
+    from importlib.resources import files
+except ImportError:  # pragma: no cover
+    from importlib_resources import files  # type: ignore
+
+
+OUTPUT_MARKER = ".mkpages-output"
+DEFAULT_THEME_RESOURCE = "themes/default.css"
+EXCLUDED_NAMES = {
+    ".git",
+    ".github",
+    ".mkpages",
+    "_site",
+    ".venv",
+    "venv",
+    "__pycache__",
+}
+MARKDOWN_LINK_RE = re.compile(r"(?P<prefix>!?\[[^\]]*\]\()(?P<target>[^)]+)(?P<suffix>\))")
+H1_RE = re.compile(r"^#\s+(?P<title>.+?)\s*$", re.MULTILINE)
+FRONT_MATTER_RE = re.compile(r"\A---\s*\n(?P<front>.*?)\n---\s*\n?", re.DOTALL)
+FRONT_MATTER_KEY_RE = re.compile(r"^(?P<key>[A-Za-z_][A-Za-z0-9_-]*)\s*:", re.MULTILINE)
+
+
+class MkpagesError(RuntimeError):
+    """Raised when site generation cannot continue safely."""
+
+
+@dataclass(frozen=True)
+class Page:
+    """Represents a source markdown file and its generated route."""
+
+    source_rel: PurePosixPath
+    route_rel: PurePosixPath
+    output_rel: PurePosixPath
+
+    @property
+    def route_url(self) -> str:
+        """Return the site URL for this page."""
+        route = str(self.route_rel).strip(".")
+        if not route:
+            return "/"
+        return "/" + route.strip("/") + "/"
+
+
+@dataclass(frozen=True)
+class GenerationResult:
+    """Summary of one generation run."""
+
+    output_dir: Path
+    pages_written: int
+    assets_copied: int
+
+
+def generate_site(content_root: Path, output_dir: Path, explicit_theme: Path | None = None) -> GenerationResult:
+    """Generate a Jekyll source tree from a markdown content root."""
+    markdown_files = find_markdown_files(content_root)
+    page_map = build_page_map(markdown_files)
+
+    prepare_output_dir(output_dir)
+    write_marker(output_dir)
+    write_site_files(output_dir, site_title=infer_site_title(content_root), theme_path=resolve_theme(content_root, explicit_theme))
+
+    pages_written = 0
+    for page in page_map.values():
+        write_page(content_root, output_dir, page, page_map)
+        pages_written += 1
+
+    assets_copied = copy_non_markdown_files(content_root, output_dir)
+    return GenerationResult(output_dir=output_dir, pages_written=pages_written, assets_copied=assets_copied)
+
+
+def find_markdown_files(content_root: Path) -> list[PurePosixPath]:
+    """Return markdown files under the content root, excluding unsafe directories."""
+    results: list[PurePosixPath] = []
+    for path in sorted(content_root.rglob("*.md")):
+        rel_path = path.relative_to(content_root)
+        if is_excluded(rel_path):
+            continue
+        results.append(PurePosixPath(rel_path.as_posix()))
+    return results
+
+
+def build_page_map(markdown_files: Iterable[PurePosixPath]) -> dict[PurePosixPath, Page]:
+    """Map source markdown files to generated routes and output paths."""
+    source_paths = set(markdown_files)
+    return {
+        source_rel: Page(
+            source_rel=source_rel,
+            route_rel=route_for(source_rel, source_paths),
+            output_rel=output_path_for(source_rel, source_paths),
+        )
+        for source_rel in sorted(source_paths)
+    }
+
+
+def route_for(source_rel: PurePosixPath, source_paths: set[PurePosixPath]) -> PurePosixPath:
+    """Resolve the output route for a markdown file."""
+    if source_rel.name == "index.md":
+        return source_rel.parent
+    if source_rel.name == "README.md" and source_rel.parent.joinpath("index.md") not in source_paths:
+        return source_rel.parent
+    return source_rel.parent / source_rel.stem
+
+
+def output_path_for(source_rel: PurePosixPath, source_paths: set[PurePosixPath]) -> PurePosixPath:
+    """Resolve the generated markdown path within the output tree."""
+    route_rel = route_for(source_rel, source_paths)
+    if str(route_rel) in {"", "."}:
+        return PurePosixPath("index.md")
+    return route_rel / "index.md"
+
+
+def prepare_output_dir(output_dir: Path) -> None:
+    """Ensure the output directory can be safely overwritten."""
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
+        return
+    if not output_dir.is_dir():
+        raise MkpagesError(f"output path is not a directory: {output_dir}")
+
+    marker_path = output_dir / OUTPUT_MARKER
+    existing_entries = list(output_dir.iterdir())
+    if existing_entries and not marker_path.exists():
+        raise MkpagesError(
+            f"refusing to overwrite non-mkpages directory without marker: {output_dir}"
+        )
+
+    for child in existing_entries:
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+
+def write_marker(output_dir: Path) -> None:
+    """Write the output safety marker."""
+    (output_dir / OUTPUT_MARKER).write_text("generated by mkpages\n", encoding="utf-8")
+
+
+def write_site_files(output_dir: Path, site_title: str, theme_path: Path) -> None:
+    """Write the shared Jekyll config, layout, includes, and theme."""
+    write_config(output_dir, site_title)
+    write_layouts(output_dir)
+    write_theme(output_dir, theme_path)
+
+
+def write_config(output_dir: Path, site_title: str) -> None:
+    """Write a minimal Jekyll configuration file."""
+    config = (
+        f"title: {json.dumps(site_title)}\n"
+        "description: Generated by mkpages\n"
+        "markdown: kramdown\n"
+        "permalink: pretty\n"
+        "highlighter: rouge\n"
+        "kramdown:\n"
+        "  input: GFM\n"
+        "  syntax_highlighter: rouge\n"
+        "  syntax_highlighter_opts:\n"
+        "    css_class: highlight\n"
+    )
+    (output_dir / "_config.yml").write_text(config, encoding="utf-8")
+
+
+def write_layouts(output_dir: Path) -> None:
+    """Write the shared layout and includes."""
+    layout_dir = output_dir / "_layouts"
+    includes_dir = output_dir / "_includes"
+    layout_dir.mkdir(parents=True, exist_ok=True)
+    includes_dir.mkdir(parents=True, exist_ok=True)
+
+    (layout_dir / "default.html").write_text(
+        """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{{ site.description }}">
+    <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
+  </head>
+  <body>
+    <div class="site-shell">
+      {% include site_header.html %}
+      <main class="site-main">{{ content }}</main>
+      {% include site_footer.html %}
+    </div>
+  </body>
+</html>
+""",
+        encoding="utf-8",
+    )
+
+    (includes_dir / "site_header.html").write_text(
+        """<header class="site-header">
+  <a class="site-brand" href="{{ '/' | relative_url }}">{{ site.title }}</a>
+</header>
+""",
+        encoding="utf-8",
+    )
+
+    (includes_dir / "site_footer.html").write_text(
+        """<footer class="site-footer">
+  <p>Built with <code>mkpages</code>.</p>
+</footer>
+""",
+        encoding="utf-8",
+    )
+
+
+def write_theme(output_dir: Path, theme_path: Path) -> None:
+    """Copy the active site theme into the generated output."""
+    assets_dir = output_dir / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(theme_path, assets_dir / "site.css")
+
+
+def resolve_theme(content_root: Path, explicit_theme: Path | None) -> Path:
+    """Resolve the theme according to mkpages precedence rules."""
+    root_theme = content_root / "theme.css"
+    if root_theme.exists():
+        return root_theme
+    if explicit_theme is not None:
+        theme_path = explicit_theme.expanduser()
+        if not theme_path.exists():
+            raise MkpagesError(f"theme file does not exist: {theme_path}")
+        return theme_path
+
+    resource = files("mkpages").joinpath(DEFAULT_THEME_RESOURCE)
+    return Path(str(resource))
+
+
+def infer_site_title(content_root: Path) -> str:
+    """Infer a usable site title from the content root location."""
+    root_name = content_root.resolve().name
+    if root_name.lower() in {"docs", "doc", "documentation"}:
+        parent = content_root.resolve().parent.name
+        if parent:
+            return parent
+    return root_name or "mkpages"
+
+
+def write_page(
+    content_root: Path,
+    output_dir: Path,
+    page: Page,
+    page_map: dict[PurePosixPath, Page],
+) -> None:
+    """Generate one markdown page with front matter and rewritten local links."""
+    source_path = content_root / Path(page.source_rel)
+    raw_content = source_path.read_text(encoding="utf-8")
+    front_matter, body = split_front_matter(raw_content)
+    rewritten_body = rewrite_local_links(body, page, page_map)
+
+    front_matter_text = ensure_front_matter(
+        front_matter,
+        title=extract_title(rewritten_body, fallback_title(page.source_rel)),
+    )
+    rendered = front_matter_text + "\n" + rewritten_body.lstrip("\n")
+
+    destination = output_dir / Path(page.output_rel)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(rendered, encoding="utf-8")
+
+
+def split_front_matter(content: str) -> tuple[str | None, str]:
+    """Split optional YAML front matter from a markdown document."""
+    match = FRONT_MATTER_RE.match(content)
+    if not match:
+        return None, content
+    return match.group("front"), content[match.end() :]
+
+
+def ensure_front_matter(front_matter: str | None, title: str) -> str:
+    """Return front matter that guarantees layout and title keys."""
+    if not front_matter:
+        return f"---\nlayout: default\ntitle: {json.dumps(title)}\n---\n"
+
+    keys = set(FRONT_MATTER_KEY_RE.findall(front_matter))
+    lines = [line.rstrip("\n") for line in front_matter.splitlines()]
+    if "layout" not in keys:
+        lines.append("layout: default")
+    if "title" not in keys:
+        lines.append(f"title: {json.dumps(title)}")
+    return "---\n" + "\n".join(lines) + "\n---\n"
+
+
+def extract_title(content: str, fallback: str) -> str:
+    """Extract the first markdown H1 or fall back to a generated title."""
+    match = H1_RE.search(content)
+    if match:
+        return match.group("title").strip()
+    return fallback
+
+
+def fallback_title(source_rel: PurePosixPath) -> str:
+    """Build a title from the source file location."""
+    if source_rel.name in {"index.md", "README.md"} and str(source_rel.parent) not in {"", "."}:
+        token = source_rel.parent.name
+    elif source_rel.name in {"index.md", "README.md"}:
+        token = "Home"
+    else:
+        token = source_rel.stem
+    return token.replace("-", " ").replace("_", " ").title()
+
+
+def rewrite_local_links(content: str, page: Page, page_map: dict[PurePosixPath, Page]) -> str:
+    """Rewrite local markdown links so they still work after route generation."""
+
+    def replace(match: re.Match[str]) -> str:
+        raw_target = match.group("target").strip()
+        target, suffix = split_target_suffix(raw_target)
+        if not target:
+            return match.group(0)
+        if is_external_target(target):
+            return match.group(0)
+
+        path_part, fragment = split_fragment(target)
+        if not path_part:
+            return match.group(0)
+        if path_part.startswith("/"):
+            return match.group(0)
+
+        resolved_source = normalize_relative_path(page.source_rel.parent, path_part)
+        if path_part.endswith(".md"):
+            rewritten = rewrite_markdown_target(page, resolved_source, fragment, page_map)
+        else:
+            rewritten = rewrite_asset_target(page, resolved_source, fragment)
+
+        return f"{match.group('prefix')}{rewritten}{suffix}{match.group('suffix')}"
+
+    return MARKDOWN_LINK_RE.sub(replace, content)
+
+
+def split_target_suffix(target: str) -> tuple[str, str]:
+    """Separate a markdown link destination from any optional title suffix."""
+    stripped = target.strip()
+    if stripped.startswith("<") and ">" in stripped:
+        end = stripped.find(">")
+        return stripped[1:end], stripped[end + 1 :]
+
+    parts = stripped.split(maxsplit=1)
+    if not parts:
+        return "", ""
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " " + parts[1]
+
+
+def is_external_target(target: str) -> bool:
+    """Return True if a markdown target should not be rewritten."""
+    if target.startswith(("#", "mailto:", "tel:", "//")):
+        return True
+    return bool(re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target))
+
+
+def split_fragment(target: str) -> tuple[str, str]:
+    """Split a URL fragment from the main path."""
+    path, separator, fragment = target.partition("#")
+    if not separator:
+        return path, ""
+    return path, "#" + fragment
+
+
+def normalize_relative_path(base_dir: PurePosixPath, target: str) -> PurePosixPath:
+    """Normalize a relative POSIX path without touching the host filesystem."""
+    combined = base_dir.joinpath(PurePosixPath(target))
+    parts: list[str] = []
+    for part in combined.parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            if parts:
+                parts.pop()
+            continue
+        parts.append(part)
+    if not parts:
+        return PurePosixPath(".")
+    return PurePosixPath(*parts)
+
+
+def rewrite_markdown_target(
+    page: Page,
+    resolved_source: PurePosixPath,
+    fragment: str,
+    page_map: dict[PurePosixPath, Page],
+) -> str:
+    """Rewrite a markdown link to the generated route for its destination."""
+    target_page = page_map.get(resolved_source)
+    if target_page is None:
+        target_route = route_for(resolved_source, set(page_map))
+    else:
+        target_route = target_page.route_rel
+    rewritten = relative_route(page.route_rel, target_route, is_dir=True)
+    return rewritten + fragment
+
+
+def rewrite_asset_target(page: Page, resolved_source: PurePosixPath, fragment: str) -> str:
+    """Rewrite an asset path relative to the generated route."""
+    rewritten = relative_route(page.route_rel, resolved_source, is_dir=False)
+    return rewritten + fragment
+
+
+def relative_route(current_route: PurePosixPath, target_rel: PurePosixPath, is_dir: bool) -> str:
+    """Return a relative link from one generated route to another target."""
+    current = "." if str(current_route) in {"", "."} else current_route.as_posix()
+    target = "." if str(target_rel) in {"", "."} else target_rel.as_posix()
+    rewritten = os.path.relpath(target, start=current).replace(os.sep, "/")
+    if rewritten == ".":
+        return "./" if is_dir else "."
+    if is_dir and not rewritten.endswith("/"):
+        return rewritten + "/"
+    return rewritten
+
+
+def copy_non_markdown_files(content_root: Path, output_dir: Path) -> int:
+    """Copy non-markdown files into the generated output tree."""
+    copied = 0
+    for path in sorted(content_root.rglob("*")):
+        if path.is_dir():
+            continue
+        rel_path = path.relative_to(content_root)
+        if is_excluded(rel_path) or path.suffix.lower() == ".md":
+            continue
+        destination = output_dir / rel_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, destination)
+        copied += 1
+    return copied
+
+
+def is_excluded(rel_path: Path) -> bool:
+    """Return True if a path is under one of the excluded directory names."""
+    return any(part in EXCLUDED_NAMES for part in rel_path.parts)
