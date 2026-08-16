@@ -82,6 +82,18 @@ class GenerationTests(unittest.TestCase):
             "# Guide\n\n![Logo](images/logo.png)\n",
             encoding="utf-8",
         )
+        (self.content_root / "mkpages.yml").write_text(
+            "title: Test Docs\n"
+            "description: Test site description\n"
+            "navigation:\n"
+            "  - label: Home\n"
+            "    href: /\n"
+            "  - label: Guide\n"
+            "    href: /guide/\n"
+            "  - label: GitHub\n"
+            "    href: https://github.com/example/project\n",
+            encoding="utf-8",
+        )
         images_dir = self.content_root / "images"
         images_dir.mkdir()
         (images_dir / "logo.png").write_bytes(b"png")
@@ -104,17 +116,24 @@ class GenerationTests(unittest.TestCase):
         layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
         theme_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         config_text = (self.output_dir / "_config.yml").read_text(encoding="utf-8")
+        header_html = (self.output_dir / "_includes" / "site_header.html").read_text(
+            encoding="utf-8"
+        )
 
         self.assertIn("layout: default", home_page)
         self.assertIn('title: "Home"', home_page)
         self.assertIn("[Guide](guide/)", home_page)
         self.assertIn("![Logo](../images/logo.png)", guide_page)
-        self.assertIn('title: "mkpages-test-', config_text)
+        self.assertIn('title: "Test Docs"', config_text)
+        self.assertIn('description: "Test site description"', config_text)
         self.assertIn('className = "header-anchor"', layout_html)
         self.assertIn('className = "copy-button"', layout_html)
         self.assertIn('class="copy-icon"', layout_html)
         self.assertIn('wrapper.classList.add("terminal")', layout_html)
         self.assertNotIn("copy-status", layout_html)
+        self.assertIn('class="site-nav"', header_html)
+        self.assertIn("{{ '/' | relative_url }}", header_html)
+        self.assertIn("https://github.com/example/project", header_html)
         self.assertIn(".header-anchor", theme_css)
         self.assertIn(".copy-button", theme_css)
         self.assertNotIn(".code-block.terminal::before", theme_css)
@@ -166,6 +185,18 @@ class GenerationTests(unittest.TestCase):
 
         self.assertFalse((self.output_dir / "README.md").exists())
         self.assertFalse((self.output_dir / "pyproject.toml").exists())
+
+    def test_invalid_navigation_item_requires_label_and_href(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+        (self.content_root / "mkpages.yml").write_text(
+            "navigation:\n" "  - label: Home\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaises(MkpagesError) as ctx:
+            generate_site(self.content_root, self.output_dir)
+
+        self.assertIn("require label and href", str(ctx.exception))
 
 
 class CliTests(unittest.TestCase):

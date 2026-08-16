@@ -54,7 +54,12 @@ a:hover {
   align-items: center;
 }
 
-.site-header { margin-bottom: 34px; }
+.site-header {
+  margin-bottom: 34px;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
 
 .site-footer {
   margin-top: 40px;
@@ -70,6 +75,21 @@ a:hover {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.95rem 1.15rem;
+}
+
+.site-nav a {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.site-nav a:hover {
+  color: var(--text);
 }
 
 .site-main h1:first-child { margin-top: 0; }

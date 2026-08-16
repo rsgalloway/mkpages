@@ -41,6 +41,11 @@ a {
   margin-bottom: 32px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .site-footer {
@@ -58,6 +63,21 @@ a {
   letter-spacing: 0.04em;
   text-decoration: none;
   text-transform: uppercase;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1rem;
+}
+
+.site-nav a {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.site-nav a:hover {
+  color: var(--text);
 }
 
 .site-main h1:first-child { margin-top: 0; }

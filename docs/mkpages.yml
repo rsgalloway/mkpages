@@ -1,0 +1,15 @@
+title: mkpages
+description: Generate Jekyll source trees from Markdown folder trees.
+navigation:
+  - label: Home
+    href: /
+  - label: Getting Started
+    href: /getting-started/
+  - label: CLI
+    href: /cli-reference/
+  - label: Routing
+    href: /routing/
+  - label: Theming
+    href: /theming/
+  - label: GitHub
+    href: https://github.com/rsgalloway/mkpages

@@ -58,6 +58,9 @@ a:hover {
 
 .site-header {
   margin-bottom: 32px;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .site-footer {
@@ -73,6 +76,21 @@ a:hover {
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.95rem 1.1rem;
+}
+
+.site-nav a {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.site-nav a:hover {
+  color: var(--text);
 }
 
 .site-main h1:first-child {
