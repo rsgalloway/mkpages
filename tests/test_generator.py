@@ -75,7 +75,9 @@ class GenerationTests(unittest.TestCase):
         shutil.rmtree(self.tempdir)
 
     def test_generate_site_writes_expected_tree(self) -> None:
-        (self.content_root / "index.md").write_text("# Home\n\nSee [Guide](guide.md).\n", encoding="utf-8")
+        (self.content_root / "index.md").write_text(
+            "# Home\n\nSee [Guide](guide.md).\n", encoding="utf-8"
+        )
         (self.content_root / "guide.md").write_text(
             "# Guide\n\n![Logo](images/logo.png)\n",
             encoding="utf-8",

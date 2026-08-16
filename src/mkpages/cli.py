@@ -99,7 +99,9 @@ def run_build(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     content_root, output_dir, theme_path = resolve_common_paths(args, parser)
 
     try:
-        result = generate_site(content_root=content_root, output_dir=output_dir, explicit_theme=theme_path)
+        result = generate_site(
+            content_root=content_root, output_dir=output_dir, explicit_theme=theme_path
+        )
     except MkpagesError as exc:
         parser.exit(status=2, message=f"mkpages: error: {exc}\n")
 
@@ -129,7 +131,9 @@ def run_serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
             message=f"mkpages: error: output directory does not exist: {output_dir}. Run `mkpages build` first.\n",
         )
     if not output_dir.is_dir():
-        parser.exit(status=2, message=f"mkpages: error: output path is not a directory: {output_dir}\n")
+        parser.exit(
+            status=2, message=f"mkpages: error: output path is not a directory: {output_dir}\n"
+        )
     if not (output_dir / OUTPUT_MARKER).exists():
         parser.exit(
             status=2,

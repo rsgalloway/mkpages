@@ -63,14 +63,20 @@ class GenerationResult:
     assets_copied: int
 
 
-def generate_site(content_root: Path, output_dir: Path, explicit_theme: Path | None = None) -> GenerationResult:
+def generate_site(
+    content_root: Path, output_dir: Path, explicit_theme: Path | None = None
+) -> GenerationResult:
     """Generate a Jekyll source tree from a markdown content root."""
     markdown_files = find_markdown_files(content_root)
     page_map = build_page_map(markdown_files)
 
     prepare_output_dir(output_dir)
     write_marker(output_dir)
-    write_site_files(output_dir, site_title=infer_site_title(content_root), theme_path=resolve_theme(content_root, explicit_theme))
+    write_site_files(
+        output_dir,
+        site_title=infer_site_title(content_root),
+        theme_path=resolve_theme(content_root, explicit_theme),
+    )
 
     pages_written = 0
     for page in page_map.values():
@@ -78,7 +84,9 @@ def generate_site(content_root: Path, output_dir: Path, explicit_theme: Path | N
         pages_written += 1
 
     assets_copied = copy_non_markdown_files(content_root, output_dir)
-    return GenerationResult(output_dir=output_dir, pages_written=pages_written, assets_copied=assets_copied)
+    return GenerationResult(
+        output_dir=output_dir, pages_written=pages_written, assets_copied=assets_copied
+    )
 
 
 def find_markdown_files(content_root: Path) -> list[PurePosixPath]:
@@ -109,7 +117,10 @@ def route_for(source_rel: PurePosixPath, source_paths: set[PurePosixPath]) -> Pu
     """Resolve the output route for a markdown file."""
     if source_rel.name == "index.md":
         return source_rel.parent
-    if source_rel.name == "README.md" and source_rel.parent.joinpath("index.md") not in source_paths:
+    if (
+        source_rel.name == "README.md"
+        and source_rel.parent.joinpath("index.md") not in source_paths
+    ):
         return source_rel.parent
     return source_rel.parent / source_rel.stem
 
