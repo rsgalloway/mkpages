@@ -11,7 +11,7 @@ import webbrowser
 from pathlib import Path
 
 from mkpages import __version__
-from mkpages.generator import MkpagesError, OUTPUT_MARKER, generate_site
+from mkpages.generator import OUTPUT_MARKER, MkpagesError, generate_site
 
 DEFAULT_OUTPUT_DIR = Path(".mkpages")
 

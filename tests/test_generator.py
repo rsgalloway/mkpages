@@ -10,8 +10,8 @@ from unittest import mock
 
 from mkpages import __version__, cli
 from mkpages.generator import (
-    MkpagesError,
     OUTPUT_MARKER,
+    MkpagesError,
     build_page_map,
     generate_site,
     rewrite_local_links,
