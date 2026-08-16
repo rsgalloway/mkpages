@@ -163,9 +163,12 @@ class GenerationTests(unittest.TestCase):
             'getComputedStyle(document.body).getPropertyValue("--matrix-rain").trim() === "on"',
             layout_html,
         )
-        self.assertIn("mermaid.initialize({ startOnLoad: false });", layout_html)
+        self.assertIn('theme: "base"', layout_html)
+        self.assertIn('readThemeVar("--mermaid-node-bg"', layout_html)
+        self.assertIn("darkMode: isDarkHex(mermaidBackground)", layout_html)
         self.assertIn("await mermaid.run({ nodes: mermaidBlocks });", layout_html)
         self.assertIn("/\\blanguage-mermaid\\b/.test(languageContainer.className)", layout_html)
+        self.assertIn('code.classList.contains("language-mermaid")', layout_html)
         self.assertIn('wrapper.classList.add("terminal")', layout_html)
         self.assertNotIn("copy-status", layout_html)
         self.assertIn('class="site-nav"', header_html)

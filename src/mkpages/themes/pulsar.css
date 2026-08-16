@@ -13,6 +13,12 @@
   --scrollbar-thumb: rgba(108, 140, 255, 0.34);
   --scrollbar-thumb-hover: rgba(141, 228, 255, 0.56);
   --scrollbar-track: rgba(17, 20, 38, 0.74);
+  --mermaid-node-bg: #1a2140;
+  --mermaid-node-text: #dee5ff;
+  --mermaid-node-border: #6378c7;
+  --mermaid-line: #7f93d8;
+  --mermaid-edge-label-bg: #1b2243;
+  --mermaid-title: #f7f8ff;
 }
 
 * { box-sizing: border-box; }

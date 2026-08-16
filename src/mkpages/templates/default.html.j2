@@ -9,8 +9,6 @@
     <script type="module">
       import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
 
-      mermaid.initialize({ startOnLoad: false });
-
       function startMatrixRain(canvas) {
         const context = canvas.getContext("2d");
         if (!context) {
@@ -92,6 +90,58 @@
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
+        function readThemeVar(name, fallback) {
+          const value = getComputedStyle(document.documentElement)
+            .getPropertyValue(name)
+            .trim();
+          return value || fallback;
+        }
+
+        function isDarkHex(hex) {
+          const normalized = hex.replace("#", "");
+          if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+            return false;
+          }
+          const red = parseInt(normalized.slice(0, 2), 16);
+          const green = parseInt(normalized.slice(2, 4), 16);
+          const blue = parseInt(normalized.slice(4, 6), 16);
+          const brightness = (red * 299 + green * 587 + blue * 114) / 1000;
+          return brightness < 140;
+        }
+
+        const mermaidBackground = readThemeVar("--bg", "#ffffff");
+        const mermaidNodeBackground = readThemeVar("--mermaid-node-bg", "#f3f4f6");
+        const mermaidNodeText = readThemeVar("--mermaid-node-text", "#111827");
+        const mermaidNodeBorder = readThemeVar("--mermaid-node-border", "#6b7280");
+        const mermaidLine = readThemeVar("--mermaid-line", "#4b5563");
+        const mermaidLabelBackground = readThemeVar("--mermaid-edge-label-bg", "#e5e7eb");
+        const mermaidTitle = readThemeVar("--mermaid-title", mermaidNodeText);
+
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "base",
+          themeVariables: {
+            darkMode: isDarkHex(mermaidBackground),
+            background: mermaidBackground,
+            primaryColor: mermaidNodeBackground,
+            primaryTextColor: mermaidNodeText,
+            primaryBorderColor: mermaidNodeBorder,
+            secondaryColor: mermaidNodeBackground,
+            secondaryTextColor: mermaidNodeText,
+            secondaryBorderColor: mermaidNodeBorder,
+            tertiaryColor: mermaidNodeBackground,
+            tertiaryTextColor: mermaidNodeText,
+            tertiaryBorderColor: mermaidNodeBorder,
+            lineColor: mermaidLine,
+            defaultLinkColor: mermaidLine,
+            edgeLabelBackground: mermaidLabelBackground,
+            nodeBorder: mermaidNodeBorder,
+            nodeTextColor: mermaidNodeText,
+            textColor: mermaidTitle,
+            titleColor: mermaidTitle,
+          },
+        });
+
         const themeCanvas = document.getElementById("theme-canvas");
         const matrixEnabled =
           themeCanvas instanceof HTMLCanvasElement &&
@@ -106,16 +156,23 @@
         const mermaidCodeBlocks = document.querySelectorAll(".site-main pre");
         for (const block of mermaidCodeBlocks) {
           const languageContainer = block.closest("[class*='language-']");
-          if (!languageContainer || !/\blanguage-mermaid\b/.test(languageContainer.className)) {
+          const code = block.querySelector("code");
+          const wrapperIsMermaid =
+            languageContainer && /\blanguage-mermaid\b/.test(languageContainer.className);
+          const codeIsMermaid =
+            code instanceof HTMLElement && code.classList.contains("language-mermaid");
+
+          if (!wrapperIsMermaid && !codeIsMermaid) {
             continue;
           }
 
-          const container = languageContainer.matches("div")
-            ? languageContainer
-            : block.parentElement;
+          const container =
+            wrapperIsMermaid && languageContainer.matches("div")
+              ? languageContainer
+              : block;
           const diagram = document.createElement("pre");
           diagram.className = "mermaid";
-          diagram.textContent = block.textContent ?? "";
+          diagram.textContent = code?.textContent ?? block.textContent ?? "";
           mermaidBlocks.push(diagram);
           container.replaceWith(diagram);
         }
@@ -147,10 +204,16 @@
           const wrapper = document.createElement("div");
           wrapper.className = "code-block";
           const languageContainer = block.closest("[class*='language-']");
+          const code = block.querySelector("code");
+          const codeIsMermaid =
+            code instanceof HTMLElement && code.classList.contains("language-mermaid");
           if (
             languageContainer &&
             /\blanguage-mermaid\b/.test(languageContainer.className)
           ) {
+            continue;
+          }
+          if (codeIsMermaid) {
             continue;
           }
           if (
