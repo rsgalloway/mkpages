@@ -3,15 +3,18 @@
 ## Synopsis
 
 ```bash
-mkpages build [PATH] [--output .mkpages] [--theme PATH]
-mkpages serve [--host 127.0.0.1] [--port 4000]
+mkpages build [PATH] [--output .mkpages] [--theme NAME_OR_PATH]
+mkpages serve [--output .mkpages] [--host 127.0.0.1] [--port 4000]
+mkpages preview [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--host 127.0.0.1] [--port 4000]
+mkpages [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--host 127.0.0.1] [--port 4000]
 ```
 
 ## Arguments
 
 ### `PATH`
 
-For `mkpages build`, `PATH` is optional and defaults to the current directory.
+For `mkpages build` and `mkpages preview`, `PATH` is optional and defaults to
+the current directory.
 
 ## Options
 
@@ -19,7 +22,7 @@ For `mkpages build`, `PATH` is optional and defaults to the current directory.
 
 Choose the generated Jekyll source directory. The default is `.mkpages`.
 
-`--output` applies to `mkpages build`.
+`--output` applies to `mkpages build`, `mkpages serve`, and `mkpages preview`.
 
 ### `--theme`
 
@@ -30,7 +33,8 @@ Theme precedence is:
 
 1. `theme.css` at the content root
 2. `--theme NAME_OR_PATH`
-3. bundled default theme
+3. `theme: NAME_OR_PATH` in `mkpages.yml`
+4. bundled default theme
 
 Bundled themes:
 
@@ -50,6 +54,19 @@ browser automatically.
 This subcommand requires the `jekyll` executable to be installed and available
 on `PATH`.
 
+### `preview`
+
+Build the chosen content root into `.mkpages` and immediately serve it through
+Jekyll.
+
+`mkpages preview` accepts the same build options as `mkpages build`, including
+`--theme`, plus the same `--host` and `--port` options as `mkpages serve`.
+
+### Bare `PATH`
+
+If the first argument is not a known subcommand, `mkpages` treats it as a
+shortcut for `mkpages preview PATH`.
+
 ### `serve --host`
 
 Choose the bind host for the Jekyll preview server. The default is
@@ -64,6 +81,9 @@ Choose the port for the Jekyll preview server. The default is `4000`.
 Generate a Jekyll source tree from the chosen content root.
 
 `mkpages build` defaults to building into `.mkpages`.
+
+Hidden files and hidden directories under the content root are ignored by
+default.
 
 ## Examples
 
@@ -91,7 +111,19 @@ Use a bundled dark theme:
 mkpages build docs/ --theme dark
 ```
 
-Preview the generated site locally through Jekyll:
+Preview the generated site locally in one step:
+
+```bash
+mkpages preview docs/ --theme dark
+```
+
+Use the bare-path shortcut:
+
+```bash
+mkpages docs/ --theme dark
+```
+
+Or preview an existing generated site without rebuilding:
 
 ```bash
 mkpages build docs/

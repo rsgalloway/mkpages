@@ -260,6 +260,17 @@ table {
   border-collapse: collapse;
 }
 
+.mermaid {
+  margin: 1.2rem 0;
+  overflow-x: auto;
+}
+
+.mermaid svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 th, td {
   padding: 0.7rem 0.8rem;
   border: 1px solid var(--border);

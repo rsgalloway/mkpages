@@ -22,6 +22,15 @@ mkpages build docs/ --theme dark
 mkpages build docs/ --theme minimal
 ```
 
+You can also set a bundled theme in `mkpages.yml`:
+
+```yaml
+theme: dark
+```
+
+This is useful when you want the content root itself to stay just Markdown plus
+configuration.
+
 ## Override with `theme.css`
 
 If the content root contains `theme.css`, that file wins automatically.
@@ -37,7 +46,7 @@ docs/
 Then:
 
 ```bash
-mkpages docs/ --output .mkpages
+mkpages build docs/ --output .mkpages
 ```
 
 uses `docs/theme.css`.

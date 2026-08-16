@@ -85,6 +85,7 @@ class GenerationTests(unittest.TestCase):
         (self.content_root / "mkpages.yml").write_text(
             "title: Test Docs\n"
             "description: Test site description\n"
+            "theme: dark\n"
             "navigation:\n"
             "  - label: Home\n"
             "    href: /\n"
@@ -129,11 +130,19 @@ class GenerationTests(unittest.TestCase):
         self.assertIn('className = "header-anchor"', layout_html)
         self.assertIn('className = "copy-button"', layout_html)
         self.assertIn('class="copy-icon"', layout_html)
+        self.assertIn(
+            'import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"',
+            layout_html,
+        )
+        self.assertIn("mermaid.initialize({ startOnLoad: false });", layout_html)
+        self.assertIn("await mermaid.run({ nodes: mermaidBlocks });", layout_html)
+        self.assertIn("/\\blanguage-mermaid\\b/.test(languageContainer.className)", layout_html)
         self.assertIn('wrapper.classList.add("terminal")', layout_html)
         self.assertNotIn("copy-status", layout_html)
         self.assertIn('class="site-nav"', header_html)
         self.assertIn("{{ '/' | relative_url }}", header_html)
         self.assertIn("https://github.com/example/project", header_html)
+        self.assertIn("--bg: #0d1117;", theme_css)
         self.assertIn(".header-anchor", theme_css)
         self.assertIn(".copy-button", theme_css)
         self.assertNotIn(".code-block.terminal::before", theme_css)
@@ -157,6 +166,24 @@ class GenerationTests(unittest.TestCase):
 
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         self.assertIn("color: red", site_css)
+
+    def test_config_theme_is_used_when_present(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+        (self.content_root / "mkpages.yml").write_text("theme: minimal\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir)
+
+        site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
+        self.assertIn("--bg: #ffffff;", site_css)
+
+    def test_explicit_theme_overrides_config_theme(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+        (self.content_root / "mkpages.yml").write_text("theme: minimal\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir, explicit_theme="dark")
+
+        site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
+        self.assertIn("--bg: #0d1117;", site_css)
 
     def test_bundled_named_theme_can_be_selected(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
@@ -185,6 +212,20 @@ class GenerationTests(unittest.TestCase):
 
         self.assertFalse((self.output_dir / "README.md").exists())
         self.assertFalse((self.output_dir / "pyproject.toml").exists())
+
+    def test_generate_site_ignores_hidden_files_and_directories(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+        (self.content_root / ".draft.md").write_text("# Hidden Draft\n", encoding="utf-8")
+        (self.content_root / ".gitignore").write_text(".mkpages\n", encoding="utf-8")
+        hidden_dir = self.content_root / ".obsidian"
+        hidden_dir.mkdir()
+        (hidden_dir / "graph.json").write_text("{}\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir)
+
+        self.assertFalse((self.output_dir / ".draft" / "index.md").exists())
+        self.assertFalse((self.output_dir / ".gitignore").exists())
+        self.assertFalse((self.output_dir / ".obsidian" / "graph.json").exists())
 
     def test_invalid_navigation_item_requires_label_and_href(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
@@ -216,6 +257,20 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         run_build.assert_called_once()
 
+    def test_main_dispatches_preview_subcommand(self) -> None:
+        with mock.patch("mkpages.cli.run_preview", return_value=0) as run_preview:
+            status = cli.main(["preview", "docs", "--theme", "dark"])
+
+        self.assertEqual(status, 0)
+        run_preview.assert_called_once()
+
+    def test_main_treats_bare_path_as_preview(self) -> None:
+        with mock.patch("mkpages.cli.run_preview", return_value=0) as run_preview:
+            status = cli.main(["docs", "--theme", "dark"])
+
+        self.assertEqual(status, 0)
+        run_preview.assert_called_once()
+
     def test_main_requires_subcommand(self) -> None:
         status = cli.main([])
         self.assertEqual(status, 2)
@@ -242,16 +297,11 @@ class CliTests(unittest.TestCase):
 
     def test_run_serve_requires_existing_build_output(self) -> None:
         parser = cli.build_serve_parser()
-        args = parser.parse_args([])
-
-        original_output = cli.DEFAULT_OUTPUT_DIR
         with tempfile.TemporaryDirectory(prefix="mkpages-cli-") as tempdir:
-            try:
-                cli.DEFAULT_OUTPUT_DIR = Path(tempdir) / ".mkpages"
-                with self.assertRaises(SystemExit) as ctx:
-                    cli.run_serve(args, parser)
-            finally:
-                cli.DEFAULT_OUTPUT_DIR = original_output
+            args = parser.parse_args(["--output", str(Path(tempdir) / ".mkpages")])
+
+            with self.assertRaises(SystemExit) as ctx:
+                cli.run_serve(args, parser)
 
         self.assertEqual(ctx.exception.code, 2)
 
@@ -259,22 +309,19 @@ class CliTests(unittest.TestCase):
         parser = cli.build_serve_parser()
 
         with tempfile.TemporaryDirectory(prefix="mkpages-cli-") as tempdir:
-            args = parser.parse_args(["--host", "0.0.0.0", "--port", "5000"])
+            args = parser.parse_args(
+                ["--output", str(Path(tempdir) / ".mkpages"), "--host", "0.0.0.0", "--port", "5000"]
+            )
             output_dir = Path(tempdir) / ".mkpages"
             output_dir.mkdir()
             (output_dir / OUTPUT_MARKER).write_text("generated by mkpages\n", encoding="utf-8")
 
-            original_output = cli.DEFAULT_OUTPUT_DIR
             with mock.patch("mkpages.cli.shutil.which", return_value="/usr/bin/jekyll"):
-                try:
-                    cli.DEFAULT_OUTPUT_DIR = output_dir
-                    with mock.patch("mkpages.cli.threading.Timer") as timer:
-                        with mock.patch(
-                            "mkpages.cli.subprocess.run", return_value=mock.Mock(returncode=0)
-                        ) as run:
-                            status = cli.run_serve(args, parser)
-                finally:
-                    cli.DEFAULT_OUTPUT_DIR = original_output
+                with mock.patch("mkpages.cli.threading.Timer") as timer:
+                    with mock.patch(
+                        "mkpages.cli.subprocess.run", return_value=mock.Mock(returncode=0)
+                    ) as run:
+                        status = cli.run_serve(args, parser)
 
         self.assertEqual(status, 0)
         timer.assert_called_once_with(1.0, cli.open_browser, args=("0.0.0.0", 5000))
@@ -294,6 +341,18 @@ class CliTests(unittest.TestCase):
             ],
             check=False,
         )
+
+    def test_run_preview_builds_then_serves(self) -> None:
+        parser = cli.build_preview_parser()
+        args = parser.parse_args(["docs", "--theme", "dark", "--port", "5000"])
+
+        with mock.patch("mkpages.cli.run_build", return_value=0) as run_build:
+            with mock.patch("mkpages.cli.run_serve", return_value=0) as run_serve:
+                status = cli.run_preview(args, parser)
+
+        self.assertEqual(status, 0)
+        run_build.assert_called_once_with(args, parser)
+        run_serve.assert_called_once_with(args, parser)
 
 
 if __name__ == "__main__":

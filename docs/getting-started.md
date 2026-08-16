@@ -28,6 +28,18 @@ Generate from a `docs/` folder into `.mkpages/`:
 mkpages build docs/
 ```
 
+Preview a Markdown tree in one step:
+
+```bash
+mkpages preview docs/
+```
+
+The same shortcut also works without an explicit subcommand:
+
+```bash
+mkpages docs/
+```
+
 ## What gets generated
 
 The output directory contains:
@@ -39,6 +51,8 @@ The output directory contains:
 - copied non-Markdown assets
 - `assets/site.css`
 - `.mkpages-output`
+
+Hidden files and hidden directories in the content root are ignored by default.
 
 ## Next steps
 
@@ -54,3 +68,15 @@ mkpages serve
 
 `mkpages serve` uses the existing `.mkpages` output and opens the preview URL
 in your default browser when possible.
+
+## Mermaid diagrams
+
+Fenced code blocks marked as `mermaid` are rendered automatically in the
+generated site.
+
+```mermaid
+flowchart TD
+  A[Markdown] --> B[mkpages]
+  B --> C[Jekyll]
+  C --> D[Static site]
+```

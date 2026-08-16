@@ -66,6 +66,33 @@ def build_serve_parser() -> argparse.ArgumentParser:
         description="Serve an existing mkpages output directory through Jekyll.",
     )
     parser.add_argument(
+        "--output",
+        default=str(DEFAULT_OUTPUT_DIR),
+        help="Existing mkpages output directory to serve. The default is .mkpages.",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host interface to bind the Jekyll preview server to.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=4000,
+        help="Port for the Jekyll preview server.",
+    )
+    return parser
+
+
+def build_preview_parser() -> argparse.ArgumentParser:
+    """Create the preview subcommand parser."""
+    parser = argparse.ArgumentParser(
+        prog="mkpages preview",
+        description="Build a Markdown folder tree into .mkpages and serve it through Jekyll.",
+    )
+    add_source_argument(parser)
+    add_build_options(parser)
+    parser.add_argument(
         "--host",
         default="127.0.0.1",
         help="Host interface to bind the Jekyll preview server to.",
@@ -89,8 +116,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("build", "serve"),
-        help="Subcommand to run.",
+        help="Subcommand to run, or a Markdown content path to preview directly.",
     )
     return parser
 
@@ -115,7 +141,7 @@ def run_build(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
 
 def run_serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     """Serve the existing generated site through Jekyll."""
-    output_dir = DEFAULT_OUTPUT_DIR
+    output_dir = Path(getattr(args, "output", DEFAULT_OUTPUT_DIR)).expanduser()
     jekyll_bin = shutil.which("jekyll")
     if jekyll_bin is None:
         parser.exit(
@@ -170,6 +196,14 @@ def run_serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     return 0
 
 
+def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Build and then serve a Markdown tree using the default mkpages output flow."""
+    status = run_build(args, parser)
+    if status != 0:
+        return status
+    return run_serve(args, parser)
+
+
 def open_browser(host: str, port: int) -> None:
     """Open the preview URL in the user's default browser."""
     browser_host = "localhost" if host in {"0.0.0.0", "::"} else host
@@ -208,7 +242,18 @@ def main(argv: list[str] | None = None) -> int:
         parser = build_serve_parser()
         args = parser.parse_args(args_list[1:])
         return run_serve(args, parser)
+    if root_args.command == "preview":
+        parser = build_preview_parser()
+        args = parser.parse_args(args_list[1:])
+        return run_preview(args, parser)
+    if root_args.command:
+        parser = build_preview_parser()
+        args = parser.parse_args(args_list)
+        return run_preview(args, parser)
 
     root_parser.print_usage(sys.stderr)
-    print("mkpages: error: a subcommand is required (build or serve)", file=sys.stderr)
+    print(
+        "mkpages: error: a subcommand is required (build, serve, or preview)",
+        file=sys.stderr,
+    )
     return 2

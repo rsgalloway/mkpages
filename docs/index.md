@@ -42,6 +42,5 @@ mkpages build docs/
 For local preview through Jekyll:
 
 ```bash
-mkpages build docs/
-mkpages serve
+mkpages preview docs/
 ```

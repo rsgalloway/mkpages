@@ -6,7 +6,7 @@
 
 1. Install Python
 2. Install `mkpages`
-3. Run `mkpages docs/ --output .mkpages`
+3. Run `mkpages build docs/ --output .mkpages`
 4. Build the generated Jekyll source
 5. Deploy the resulting site
 
@@ -19,7 +19,7 @@
 
 - run: python -m pip install mkpages
 
-- run: mkpages docs/ --output .mkpages
+- run: mkpages build docs/ --output .mkpages
 
 - uses: actions/jekyll-build-pages@v1
   with:
