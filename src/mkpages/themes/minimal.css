@@ -9,6 +9,9 @@
   --code-border: #d1d5db;
   --code-accent: #2563eb;
   --code-muted: #6b7280;
+  --scrollbar-thumb: rgba(75, 85, 99, 0.28);
+  --scrollbar-thumb-hover: rgba(75, 85, 99, 0.45);
+  --scrollbar-track: rgba(229, 231, 235, 0.72);
 }
 
 * { box-sizing: border-box; }
@@ -22,7 +25,11 @@ html, body {
   line-height: 1.65;
 }
 
-body { padding: 20px 14px 40px; }
+body {
+  padding: 20px 14px 40px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
 
 a {
   color: var(--accent);
@@ -141,6 +148,8 @@ pre {
   border: 1px solid var(--code-border);
   border-radius: 2px;
   background: var(--code);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 pre code {
@@ -248,6 +257,8 @@ table {
 .mermaid {
   margin: 1.2rem 0;
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .mermaid svg {
@@ -263,3 +274,21 @@ th, td {
 }
 
 th { color: var(--muted); }
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}

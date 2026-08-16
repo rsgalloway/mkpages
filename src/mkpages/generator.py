@@ -23,7 +23,11 @@ CONFIG_FILE_NAME = "mkpages.yml"
 BUNDLED_THEMES = {
     "default": "themes/default.css",
     "dark": "themes/dark.css",
+    "developer": "themes/developer.css",
+    "matrix": "themes/matrix.css",
     "minimal": "themes/minimal.css",
+    "pulsar": "themes/pulsar.css",
+    "retro": "themes/retro.css",
 }
 EXCLUDED_NAMES = {
     ".git",

@@ -10,6 +10,9 @@
   --code-border: #cfb48d;
   --code-accent: #8a3a18;
   --code-muted: #93785e;
+  --scrollbar-thumb: rgba(138, 58, 24, 0.36);
+  --scrollbar-thumb-hover: rgba(138, 58, 24, 0.56);
+  --scrollbar-track: rgba(239, 228, 213, 0.52);
 }
 
 * { box-sizing: border-box; }
@@ -28,6 +31,8 @@ html, body {
 
 body {
   padding: 28px 18px 56px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 a {
@@ -159,6 +164,8 @@ pre {
   border: 1px solid var(--code-border);
   border-radius: 4px;
   background: var(--code);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 pre code {
@@ -266,6 +273,8 @@ table {
 .mermaid {
   margin: 1.2rem 0;
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .mermaid svg {
@@ -282,6 +291,24 @@ th, td {
 
 th {
   background: rgba(179, 92, 46, 0.08);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 @media (max-width: 720px) {

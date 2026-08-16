@@ -11,7 +11,97 @@
 
       mermaid.initialize({ startOnLoad: false });
 
+      function startMatrixRain(canvas) {
+        const context = canvas.getContext("2d");
+        if (!context) {
+          return;
+        }
+
+        const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const glyphs = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const fontSize = 18;
+        let columns = 0;
+        let drops = [];
+        let animationFrameId = 0;
+        let lastFrame = 0;
+
+        const resize = () => {
+          const scale = window.devicePixelRatio || 1;
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          canvas.width = Math.floor(width * scale);
+          canvas.height = Math.floor(height * scale);
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+          context.setTransform(scale, 0, 0, scale, 0, 0);
+          columns = Math.max(1, Math.floor(width / fontSize));
+          drops = Array.from({ length: columns }, () => Math.random() * -40);
+        };
+
+        const draw = (timestamp) => {
+          if (motionQuery.matches) {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+          }
+          if (timestamp - lastFrame < 48) {
+            animationFrameId = window.requestAnimationFrame(draw);
+            return;
+          }
+          lastFrame = timestamp;
+
+          context.fillStyle = "rgba(1, 4, 2, 0.12)";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.font = `${fontSize}px "IBM Plex Mono", monospace`;
+          context.textBaseline = "top";
+
+          for (let index = 0; index < columns; index += 1) {
+            const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+            const x = index * fontSize;
+            const y = drops[index] * fontSize;
+            context.fillStyle = "rgba(98, 255, 150, 0.78)";
+            context.fillText(glyph, x, y);
+            context.fillStyle = "rgba(200, 255, 220, 0.96)";
+            context.fillText(glyph, x, y - fontSize * 0.18);
+
+            if (y > window.innerHeight && Math.random() > 0.975) {
+              drops[index] = Math.random() * -24;
+            } else {
+              drops[index] += 1;
+            }
+          }
+
+          animationFrameId = window.requestAnimationFrame(draw);
+        };
+
+        resize();
+        context.fillStyle = "rgba(1, 4, 2, 1)";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        animationFrameId = window.requestAnimationFrame(draw);
+
+        window.addEventListener("resize", resize, { passive: true });
+        motionQuery.addEventListener("change", () => {
+          if (motionQuery.matches) {
+            window.cancelAnimationFrame(animationFrameId);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+          } else {
+            resize();
+            lastFrame = 0;
+            animationFrameId = window.requestAnimationFrame(draw);
+          }
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", async () => {
+        const themeCanvas = document.getElementById("theme-canvas");
+        const matrixEnabled =
+          themeCanvas instanceof HTMLCanvasElement &&
+          getComputedStyle(document.body).getPropertyValue("--matrix-rain").trim() === "on";
+        if (matrixEnabled) {
+          startMatrixRain(themeCanvas);
+        } else if (themeCanvas) {
+          themeCanvas.remove();
+        }
+
         const mermaidBlocks = [];
         const mermaidCodeBlocks = document.querySelectorAll(".site-main pre");
         for (const block of mermaidCodeBlocks) {
@@ -107,6 +197,7 @@
     </script>
   </head>
   <body>
+    <canvas id="theme-canvas" aria-hidden="true"></canvas>
     <div class="site-shell">
       {% include site_header.html %}
       <main class="site-main">{{ content }}</main>

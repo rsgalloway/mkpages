@@ -13,14 +13,29 @@ stylesheet to `assets/site.css`.
 
 - `default`
 - `dark`
+- `developer`
+- `matrix`
 - `minimal`
+- `pulsar`
+- `retro`
 
 Select one with:
 
 ```bash
 mkpages build docs/ --theme dark
 mkpages build docs/ --theme minimal
+mkpages build docs/ --theme retro
 ```
+
+Theme directions:
+
+- `default`: warm editorial serif
+- `dark`: polished dark docs
+- `developer`: developer-blog dark layout
+- `matrix`: neon green terminal atmosphere
+- `minimal`: stripped-back monochrome writing
+- `pulsar`: moody dark product-blog cards
+- `retro`: amber terminal paper
 
 You can also set a bundled theme in `mkpages.yml`:
 

@@ -40,7 +40,11 @@ Bundled themes:
 
 - `default`
 - `dark`
+- `developer`
+- `matrix`
 - `minimal`
+- `pulsar`
+- `retro`
 
 ### `serve`
 

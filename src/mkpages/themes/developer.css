@@ -1,18 +1,18 @@
 :root {
-  --bg: #0d1117;
-  --panel: rgba(18, 24, 34, 0.94);
-  --border: #2d3748;
-  --text: #edf2f7;
-  --muted: #a0aec0;
-  --accent: #63b3ed;
-  --accent-strong: #90cdf4;
-  --code: #111827;
-  --code-border: #334155;
-  --code-accent: #90cdf4;
-  --code-muted: #718096;
-  --scrollbar-thumb: rgba(144, 205, 244, 0.34);
-  --scrollbar-thumb-hover: rgba(144, 205, 244, 0.56);
-  --scrollbar-track: rgba(17, 24, 39, 0.68);
+  --bg: #090b10;
+  --panel: rgba(12, 14, 20, 0.96);
+  --border: #222634;
+  --text: #f3f6ff;
+  --muted: #aab3c9;
+  --accent: #8e7dff;
+  --accent-strong: #51c5ff;
+  --code: #121621;
+  --code-border: #2e3447;
+  --code-accent: #7cbcff;
+  --code-muted: #6d7590;
+  --scrollbar-thumb: rgba(124, 188, 255, 0.32);
+  --scrollbar-thumb-hover: rgba(124, 188, 255, 0.56);
+  --scrollbar-track: rgba(18, 22, 33, 0.76);
 }
 
 * { box-sizing: border-box; }
@@ -22,15 +22,15 @@ html, body {
   padding: 0;
   min-height: 100%;
   background:
-    radial-gradient(circle at top right, rgba(99, 179, 237, 0.16), transparent 28%),
-    linear-gradient(180deg, #0a0f14 0%, var(--bg) 100%);
+    radial-gradient(circle at top, rgba(81, 197, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, #07090d 0%, var(--bg) 100%);
   color: var(--text);
-  font-family: "Avenir Next", "Segoe UI", sans-serif;
-  line-height: 1.72;
+  font-family: Inter, "Segoe UI", sans-serif;
+  line-height: 1.75;
 }
 
 body {
-  padding: 30px 18px 56px;
+  padding: 22px 16px 52px;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
@@ -41,18 +41,14 @@ a {
 }
 
 a:hover {
-  color: #bee3f8;
+  color: #9bdbff;
   text-decoration: underline;
 }
 
 .site-shell {
-  max-width: 940px;
+  max-width: 1260px;
   margin: 0 auto;
-  padding: 28px 30px 44px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+  padding: 0 6px;
 }
 
 .site-header,
@@ -62,16 +58,18 @@ a:hover {
 }
 
 .site-header {
-  margin-bottom: 34px;
+  margin-bottom: 38px;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .site-footer {
-  margin-top: 40px;
+  margin-top: 44px;
   padding-top: 18px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
   color: var(--muted);
   font-size: 0.94rem;
 }
@@ -80,51 +78,54 @@ a:hover {
   color: var(--text);
   font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .site-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.95rem 1.15rem;
+  gap: 1rem 1.2rem;
 }
 
 .site-nav a {
   color: var(--muted);
-  font-size: 0.94rem;
+  font-size: 0.96rem;
 }
 
 .site-nav a:hover {
   color: var(--text);
 }
 
+.site-main {
+  max-width: 760px;
+}
+
 .site-main h1:first-child { margin-top: 0; }
 
 h1, h2, h3 {
   color: var(--text);
-  line-height: 1.12;
+  line-height: 1.1;
   position: relative;
 }
 
 h1 {
-  font-size: clamp(2.1rem, 5vw, 3.5rem);
-  margin-bottom: 0.85rem;
+  font-size: clamp(2.35rem, 5vw, 4rem);
+  margin-bottom: 0.9rem;
 }
 
 h2 {
-  font-size: 1.55rem;
-  margin-top: 2.7rem;
+  font-size: 1.85rem;
+  margin-top: 2.9rem;
 }
 
 h3 {
-  font-size: 1.16rem;
-  margin-top: 1.7rem;
+  font-size: 1.2rem;
+  margin-top: 1.8rem;
 }
 
 p, li {
   color: var(--muted);
-  font-size: 1rem;
+  font-size: 1.04rem;
 }
 
 strong { color: var(--text); }
@@ -151,7 +152,7 @@ code, pre {
 }
 
 code {
-  padding: 0.14rem 0.38rem;
+  padding: 0.12rem 0.38rem;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: var(--text);
@@ -161,7 +162,7 @@ pre {
   overflow-x: auto;
   padding: 18px 20px;
   border: 1px solid var(--code-border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--code);
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
@@ -194,13 +195,13 @@ pre.highlight {
   border-radius: 4px;
   width: 1.95rem;
   height: 1.95rem;
-  background: rgba(10, 15, 20, 0.92);
+  background: rgba(10, 12, 18, 0.94);
   color: var(--text);
   cursor: pointer;
 }
 
 .copy-button:hover {
-  background: rgba(17, 24, 39, 0.98);
+  background: rgba(16, 21, 31, 0.99);
 }
 
 .copy-icon {
@@ -219,7 +220,7 @@ pre.highlight {
 .highlight .kn,
 .highlight .kp,
 .highlight .kr,
-.highlight .kt { color: #f6ad55; font-weight: 600; }
+.highlight .kt { color: #a899ff; font-weight: 600; }
 .highlight .s,
 .highlight .sa,
 .highlight .sb,
@@ -227,41 +228,45 @@ pre.highlight {
 .highlight .sd,
 .highlight .s1,
 .highlight .s2,
-.highlight .dl { color: #9ae6b4; }
+.highlight .dl { color: #7ee3ff; }
 .highlight .m,
 .highlight .mf,
 .highlight .mh,
 .highlight .mi,
 .highlight .il,
-.highlight .mo { color: #fbb6ce; }
+.highlight .mo { color: #ffb29c; }
 .highlight .na,
 .highlight .nb,
 .highlight .nc,
 .highlight .nf,
-.highlight .fm { color: #90cdf4; }
+.highlight .fm { color: #8cc6ff; }
 .highlight .o,
 .highlight .ow,
-.highlight .p { color: #cbd5e0; }
+.highlight .p { color: #dbe4ff; }
 .highlight .nv,
 .highlight .vc,
 .highlight .vg,
 .highlight .vi { color: var(--code-accent); }
 .highlight .gh,
-.highlight .gu { color: #e2e8f0; font-weight: 700; }
-.highlight .gp { color: #63b3ed; }
+.highlight .gu { color: #ffffff; font-weight: 700; }
+.highlight .gp { color: #6fbfff; }
 .highlight .go,
-.highlight .w { color: #94a3b8; }
+.highlight .w { color: #7b84a1; }
 
 blockquote {
   margin: 1.6rem 0;
-  padding: 0.25rem 0 0.25rem 1rem;
-  border-left: 4px solid var(--accent);
+  padding: 1rem 1.1rem 1rem 1.2rem;
+  border: 1px solid rgba(81, 197, 255, 0.2);
+  border-left: 4px solid #18a66c;
+  border-radius: 8px;
+  background: rgba(16, 18, 27, 0.82);
   color: var(--text);
 }
 
 img {
   max-width: 100%;
   height: auto;
+  border-radius: 12px;
 }
 
 table {
@@ -284,13 +289,11 @@ table {
 
 th, td {
   padding: 0.7rem 0.8rem;
-  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
-th {
-  background: rgba(99, 179, 237, 0.12);
-}
+th { color: var(--text); }
 
 *::-webkit-scrollbar {
   width: 8px;
@@ -308,9 +311,4 @@ th {
 
 *::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
-}
-
-@media (max-width: 720px) {
-  body { padding: 18px 10px 36px; }
-  .site-shell { padding: 22px 18px 28px; }
 }

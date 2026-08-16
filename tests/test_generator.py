@@ -134,6 +134,12 @@ class GenerationTests(unittest.TestCase):
             'import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"',
             layout_html,
         )
+        self.assertIn('<canvas id="theme-canvas" aria-hidden="true"></canvas>', layout_html)
+        self.assertIn("function startMatrixRain(canvas)", layout_html)
+        self.assertIn(
+            'getComputedStyle(document.body).getPropertyValue("--matrix-rain").trim() === "on"',
+            layout_html,
+        )
         self.assertIn("mermaid.initialize({ startOnLoad: false });", layout_html)
         self.assertIn("await mermaid.run({ nodes: mermaidBlocks });", layout_html)
         self.assertIn("/\\blanguage-mermaid\\b/.test(languageContainer.className)", layout_html)
@@ -169,16 +175,16 @@ class GenerationTests(unittest.TestCase):
 
     def test_config_theme_is_used_when_present(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
-        (self.content_root / "mkpages.yml").write_text("theme: minimal\n", encoding="utf-8")
+        (self.content_root / "mkpages.yml").write_text("theme: retro\n", encoding="utf-8")
 
         generate_site(self.content_root, self.output_dir)
 
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
-        self.assertIn("--bg: #ffffff;", site_css)
+        self.assertIn("--bg: #19130d;", site_css)
 
     def test_explicit_theme_overrides_config_theme(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
-        (self.content_root / "mkpages.yml").write_text("theme: minimal\n", encoding="utf-8")
+        (self.content_root / "mkpages.yml").write_text("theme: retro\n", encoding="utf-8")
 
         generate_site(self.content_root, self.output_dir, explicit_theme="dark")
 
@@ -199,7 +205,10 @@ class GenerationTests(unittest.TestCase):
         with self.assertRaises(MkpagesError) as ctx:
             generate_site(self.content_root, self.output_dir, explicit_theme="nope")
 
-        self.assertIn("Built-in themes: dark, default, minimal", str(ctx.exception))
+        self.assertIn(
+            "Built-in themes: dark, default, developer, matrix, minimal, pulsar, retro",
+            str(ctx.exception),
+        )
 
     def test_generate_site_ignores_files_outside_content_root(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
