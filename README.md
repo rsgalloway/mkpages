@@ -1,0 +1,33 @@
+# mkpages
+
+`mkpages` is a Python CLI for generating Jekyll source trees from an existing
+Markdown folder tree.
+
+The long-term goal is a package you can install with:
+
+```bash
+pip install mkpages
+```
+
+and then use to build GitHub Pages-friendly static sites from project
+documentation such as `docs/`.
+
+## Project Layout
+
+- `bin/` contains small distributable CLI shims.
+- `src/` contains the Python package.
+- `tmp/` is scratch space for planning and experiments.
+
+## Development
+
+Install the project in editable mode with development tools:
+
+```bash
+pip install -e '.[dev]'
+```
+
+Available linting tools:
+
+- `black`
+- `isort`
+- `flake8`
