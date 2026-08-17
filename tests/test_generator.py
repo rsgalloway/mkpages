@@ -208,6 +208,25 @@ class GenerationTests(unittest.TestCase):
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         self.assertIn("--bg: #19130d;", site_css)
 
+    def test_default_theme_matches_pathbase_style(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir)
+
+        site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
+        self.assertIn("--bg: #f5f8fc;", site_css)
+        self.assertIn(
+            ".site-shell {\n  max-width: 1100px;\n  margin: 0 auto;\n  padding: 24px 24px 72px;",
+            site_css,
+        )
+        self.assertIn(".site-footer {\n  display: none;", site_css)
+        self.assertIn(
+            "background: linear-gradient(180deg, #111b31 0%, var(--code-bg) 100%);", site_css
+        )
+        self.assertIn("border-radius: 4px;", site_css)
+        self.assertNotIn("scrollbar-width:", site_css)
+        self.assertNotIn("::-webkit-scrollbar", site_css)
+
     def test_explicit_theme_overrides_config_theme(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
         (self.content_root / "mkpages.yml").write_text("theme: retro\n", encoding="utf-8")
