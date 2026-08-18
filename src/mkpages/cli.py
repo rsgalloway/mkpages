@@ -511,7 +511,7 @@ def start_jekyll_serve(
         stderr=None if verbose else subprocess.STDOUT,
         text=True if not verbose else None,
         bufsize=1 if not verbose else -1,
-        start_new_session=True,
+        start_new_session=os.name != "nt",
     )
     if not verbose:
         start_jekyll_output_filter(process)
@@ -579,6 +579,15 @@ def is_jekyll_error_line(line: str) -> bool:
 def stop_jekyll_process(process: subprocess.Popen) -> None:
     """Terminate the running Jekyll preview process."""
     if process.poll() is not None:
+        return
+
+    if os.name == "nt":
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
         return
 
     try:

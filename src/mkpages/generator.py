@@ -486,6 +486,12 @@ def parse_site_asset_path(
     parts = normalized.parts
     if not parts or any(part in {"", ".", ".."} for part in parts):
         raise MkpagesError(f"{key} in {config_path} must not use empty, '.' or '..' path segments")
+    if any(
+        any(ch in part for ch in {"'", '"', "<", ">", "\\", "\n", "\r", "\t"}) for part in parts
+    ):
+        raise MkpagesError(
+            f"{key} in {config_path} must not contain quotes, angle brackets, backslashes, or control characters"
+        )
 
     asset_path = config_path.parent.joinpath(*parts)
     if not asset_path.exists() or not asset_path.is_file():
