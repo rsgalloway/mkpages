@@ -105,6 +105,7 @@ class GenerationTests(unittest.TestCase):
             "title: Test Docs\n"
             "description: Test site description\n"
             "theme: dark\n"
+            "favicon: images/favicon.png\n"
             "navigation:\n"
             "  - label: Home\n"
             "    href: /\n"
@@ -117,11 +118,12 @@ class GenerationTests(unittest.TestCase):
         images_dir = self.content_root / "images"
         images_dir.mkdir()
         (images_dir / "logo.png").write_bytes(b"png")
+        (images_dir / "favicon.png").write_bytes(b"ico")
 
         result = generate_site(self.content_root, self.output_dir)
 
         self.assertEqual(result.pages_written, 3)
-        self.assertEqual(result.assets_copied, 1)
+        self.assertEqual(result.assets_copied, 2)
         self.assertTrue((self.output_dir / ".mkpages-output").exists())
         self.assertTrue((self.output_dir / "_config.yml").exists())
         self.assertTrue((self.output_dir / "_layouts" / "default.html").exists())
@@ -129,6 +131,7 @@ class GenerationTests(unittest.TestCase):
         self.assertTrue((self.output_dir / "assets" / "site.css").exists())
         self.assertTrue((self.output_dir / "guide" / "index.md").exists())
         self.assertTrue((self.output_dir / "images" / "logo.png").exists())
+        self.assertTrue((self.output_dir / "images" / "favicon.png").exists())
         self.assertTrue((self.output_dir / "_includes" / "site_footer.html").exists())
 
         home_page = (self.output_dir / "index.md").read_text(encoding="utf-8")
@@ -156,6 +159,9 @@ class GenerationTests(unittest.TestCase):
         self.assertIn(
             'import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"',
             layout_html,
+        )
+        self.assertIn(
+            '<link rel="icon" href="{{ \'/images/favicon.png\' | relative_url }}">', layout_html
         )
         self.assertIn('<canvas id="theme-canvas" aria-hidden="true"></canvas>', layout_html)
         self.assertIn("function startMatrixRain(canvas)", layout_html)
@@ -207,6 +213,25 @@ class GenerationTests(unittest.TestCase):
 
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         self.assertIn("--bg: #19130d;", site_css)
+
+    def test_favicon_is_optional(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir)
+
+        layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+        self.assertNotIn('rel="icon"', layout_html)
+
+    def test_favicon_must_exist_inside_content_root(self) -> None:
+        config_path = self.content_root / "mkpages.yml"
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+        config_path.write_text("favicon: ../favicon.png\n", encoding="utf-8")
+
+        with self.assertRaises(MkpagesError) as exc:
+            generate_site(self.content_root, self.output_dir)
+
+        self.assertIn("favicon", str(exc.exception))
+        self.assertIn("must not use empty, '.' or '..' path segments", str(exc.exception))
 
     def test_default_theme_matches_pathbase_style(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")

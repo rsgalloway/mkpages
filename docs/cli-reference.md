@@ -46,6 +46,21 @@ Bundled themes:
 - `pulsar`
 - `retro`
 
+### `mkpages.yml`
+
+The optional `mkpages.yml` file at the content root can set site-wide values
+such as:
+
+- `title`
+- `description`
+- `theme`
+- `favicon`
+- `navigation`
+
+`favicon` should be a relative path inside the content root, for example
+`assets/favicon.png`. `mkpages` copies that file through and adds a favicon
+link tag to the generated layout.
+
 ### `serve`
 
 Launch `jekyll serve` against the existing `.mkpages` output directory.

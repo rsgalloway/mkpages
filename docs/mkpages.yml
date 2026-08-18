@@ -1,6 +1,7 @@
 title: mkpages
 description: Generate Jekyll source trees from Markdown folder trees.
 theme: dark
+favicon: favicon.svg
 navigation:
   - label: Home
     href: /

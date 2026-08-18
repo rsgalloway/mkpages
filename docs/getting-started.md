@@ -40,6 +40,15 @@ The same shortcut also works without an explicit subcommand:
 mkpages docs/
 ```
 
+Configure site metadata in `mkpages.yml` at the content root:
+
+```yaml
+title: My Docs
+description: Notes and documentation for the project.
+theme: dark
+favicon: assets/favicon.png
+```
+
 ## What gets generated
 
 The output directory contains:
