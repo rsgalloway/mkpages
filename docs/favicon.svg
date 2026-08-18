@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#0d1117"/>
-  <path d="M16 46V18h8l8 11 8-11h8v28h-8V31l-8 11-8-11v15z" fill="#62ff96"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="mkpages">
+  <path fill="currentColor" fill-rule="evenodd" d="
+    M10 4h31l13 13v39a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4z
+    M41 4v13h13z
+  " clip-rule="evenodd"/>
+  <path fill="#62ff96" d="M17 46V25h6l9 12 9-12h6v21h-6V34l-9 12-9-12v12z"/>
 </svg>

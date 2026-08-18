@@ -109,7 +109,11 @@ class ContentEntry:
 
 
 def generate_site(
-    content_root: Path, output_dir: Path, explicit_theme: str | Path | None = None
+    content_root: Path,
+    output_dir: Path,
+    explicit_theme: str | Path | None = None,
+    preserve_output_names: tuple[str, ...] = (),
+    allow_unmarked_reuse: bool = False,
 ) -> GenerationResult:
     """Generate a Jekyll source tree from a markdown content root."""
     markdown_files = find_markdown_files(content_root)
@@ -118,7 +122,11 @@ def generate_site(
     site_config = load_site_config(content_root)
     site_title = site_config.title or infer_site_title(content_root)
 
-    prepare_output_dir(output_dir)
+    prepare_output_dir(
+        output_dir,
+        preserve_names=preserve_output_names,
+        allow_unmarked_reuse=allow_unmarked_reuse,
+    )
     write_marker(output_dir)
     write_site_files(
         output_dir,
@@ -184,7 +192,11 @@ def output_path_for(source_rel: PurePosixPath, source_paths: set[PurePosixPath])
     return route_rel / "index.md"
 
 
-def prepare_output_dir(output_dir: Path) -> None:
+def prepare_output_dir(
+    output_dir: Path,
+    preserve_names: tuple[str, ...] = (),
+    allow_unmarked_reuse: bool = False,
+) -> None:
     """Ensure the output directory can be safely overwritten."""
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
@@ -194,16 +206,40 @@ def prepare_output_dir(output_dir: Path) -> None:
 
     marker_path = output_dir / OUTPUT_MARKER
     existing_entries = list(output_dir.iterdir())
-    if existing_entries and not marker_path.exists():
+    if (
+        existing_entries
+        and not marker_path.exists()
+        and not (allow_unmarked_reuse and looks_like_recoverable_mkpages_output(existing_entries))
+    ):
         raise MkpagesError(
             f"refusing to overwrite non-mkpages directory without marker: {output_dir}"
         )
 
     for child in existing_entries:
+        if child.name in preserve_names:
+            continue
         if child.is_dir():
             shutil.rmtree(child)
         else:
             child.unlink()
+
+
+def looks_like_recoverable_mkpages_output(existing_entries: list[Path]) -> bool:
+    """Return True for a stale default mkpages output directory we can safely recover."""
+    allowed_names = {
+        "_config.yml",
+        "_includes",
+        "_layouts",
+        "assets",
+        "_site",
+        ".jekyll-cache",
+        ".jekyll-metadata",
+        ".sass-cache",
+    }
+    entry_names = {entry.name for entry in existing_entries}
+    if not entry_names or not entry_names.issubset(allowed_names):
+        return False
+    return bool(entry_names & {"_config.yml", "_includes", "_layouts", "assets", "_site"})
 
 
 def write_marker(output_dir: Path) -> None:

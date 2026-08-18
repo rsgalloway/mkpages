@@ -34,6 +34,9 @@ Preview a Markdown tree in one step:
 mkpages preview docs/
 ```
 
+`mkpages preview` watches the content tree, rebuilds when files change, and
+refreshes the browser automatically through Jekyll live reload.
+
 The same shortcut also works without an explicit subcommand:
 
 ```bash
@@ -76,7 +79,8 @@ mkpages serve
 ```
 
 `mkpages serve` uses the existing `.mkpages` output and opens the preview URL
-in your default browser when possible.
+in your default browser when possible. It also enables Jekyll live reload for
+changes that happen inside the generated `.mkpages` tree.
 
 ## Mermaid diagrams
 

@@ -1,4 +1,4 @@
-# mkpages
+<img src="logo.svg" alt="mkpages logo" width="400">
 
 `mkpages` turns an existing Markdown folder tree into a generated Jekyll source
 tree.

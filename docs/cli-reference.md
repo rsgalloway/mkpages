@@ -63,23 +63,29 @@ link tag to the generated layout.
 
 ### `serve`
 
-Launch `jekyll serve` against the existing `.mkpages` output directory.
+Launch `jekyll serve --livereload` against the existing `.mkpages` output
+directory.
 
 `mkpages serve` does not rebuild the site. Run `mkpages build` first.
 
 When possible, `mkpages serve` also opens the preview URL in your default web
-browser automatically.
+browser automatically and refreshes the page when Jekyll sees changes inside
+`.mkpages`.
 
 This subcommand requires the `jekyll` executable to be installed and available
 on `PATH`.
 
 ### `preview`
 
-Build the chosen content root into `.mkpages` and immediately serve it through
-Jekyll.
+Build the chosen content root into `.mkpages`, watch the source tree for
+changes, and serve it through Jekyll with live reload.
 
 `mkpages preview` accepts the same build options as `mkpages build`, including
 `--theme`, plus the same `--host` and `--port` options as `mkpages serve`.
+
+While `preview` is running, edits to non-hidden files under the content root
+trigger a fresh `mkpages` rebuild. Changes to `mkpages.yml` also restart the
+Jekyll subprocess so updated generated config is reloaded.
 
 ### Bare `PATH`
 
