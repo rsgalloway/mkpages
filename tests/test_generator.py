@@ -12,6 +12,7 @@ from unittest import mock
 
 from mkpages import __version__, cli
 from mkpages.generator import (
+    DEV_RELOAD_TOKEN_PATH,
     OUTPUT_MARKER,
     MkpagesError,
     build_page_map,
@@ -237,6 +238,19 @@ class GenerationTests(unittest.TestCase):
 
         layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
         self.assertNotIn('rel="icon"', layout_html)
+
+    def test_generate_site_can_embed_preview_reload_token(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir, dev_reload_token="preview-123")
+
+        layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+        token_text = (self.output_dir / Path(DEV_RELOAD_TOKEN_PATH)).read_text(encoding="utf-8")
+
+        self.assertIn("window.__MKPAGES_PREVIEW_TOKEN__", layout_html)
+        self.assertIn("window.__MKPAGES_PREVIEW_TOKEN_URL__", layout_html)
+        self.assertIn("mkpages-preview-token.txt", layout_html)
+        self.assertEqual(token_text, "preview-123\n")
 
     def test_favicon_must_exist_inside_content_root(self) -> None:
         config_path = self.content_root / "mkpages.yml"
@@ -495,13 +509,20 @@ class CliTests(unittest.TestCase):
                                     status = cli.run_preview(args, parser)
 
         self.assertEqual(status, 0)
-        build_site.assert_called_once_with(Path("docs"), Path(".mkpages"), None, parser)
+        build_site.assert_called_once()
+        self.assertEqual(
+            build_site.call_args.args[:4], (Path("docs"), Path(".mkpages"), None, parser)
+        )
+        self.assertIn("dev_reload_token", build_site.call_args.kwargs)
         rebuild_site_from_staging.assert_called_once_with(
-            Path("docs"), Path(".mkpages"), None, parser
+            Path("docs"), Path(".mkpages"), None, parser, dev_reload_token=mock.ANY
         )
         self.assertEqual(start_jekyll_serve.call_count, 2)
         start_jekyll_serve.assert_any_call(
-            Path(".mkpages"), "127.0.0.1", 5000, parser, verbose=False
+            Path(".mkpages"), "127.0.0.1", 5000, parser, verbose=False, open_browser_tab=True
+        )
+        start_jekyll_serve.assert_any_call(
+            Path(".mkpages"), "127.0.0.1", 5000, parser, verbose=False, open_browser_tab=False
         )
         stop_jekyll_process.assert_has_calls([mock.call(first_process), mock.call(second_process)])
 

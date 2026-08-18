@@ -191,7 +191,14 @@ def run_serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     output_dir = Path(getattr(args, "output", DEFAULT_OUTPUT_DIR)).expanduser()
     process: subprocess.Popen | None = None
     try:
-        process = start_jekyll_serve(output_dir, args.host, args.port, parser, verbose=args.verbose)
+        process = start_jekyll_serve(
+            output_dir,
+            args.host,
+            args.port,
+            parser,
+            verbose=args.verbose,
+            open_browser_tab=True,
+        )
         return process.wait()
     except KeyboardInterrupt:
         return 0
@@ -206,7 +213,13 @@ def run_serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
 def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     """Build, watch, and serve a Markdown tree using the default mkpages output flow."""
     content_root, output_dir, theme_path = resolve_common_paths(args, parser)
-    result = build_site(content_root, output_dir, theme_path, parser)
+    result = build_site(
+        content_root,
+        output_dir,
+        theme_path,
+        parser,
+        dev_reload_token=next_dev_reload_token(),
+    )
     print_status(
         f"Built {result.pages_written} page(s) and copied {result.assets_copied} asset(s) into {output_dir}",
         kind="success",
@@ -216,7 +229,14 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
 
     snapshot = build_source_snapshot(content_root)
     try:
-        process = start_jekyll_serve(output_dir, args.host, args.port, parser, verbose=args.verbose)
+        process = start_jekyll_serve(
+            output_dir,
+            args.host,
+            args.port,
+            parser,
+            verbose=args.verbose,
+            open_browser_tab=True,
+        )
         print_status(
             f"Watching {content_root} and serving http://{args.host}:{args.port}/",
             kind="accent",
@@ -249,6 +269,7 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
                     output_dir,
                     theme_path,
                     parser,
+                    dev_reload_token=next_dev_reload_token(),
                 )
             except MkpagesError as exc:
                 clear_transient_status()
@@ -259,20 +280,32 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
                 print_status(f"Rebuild failed: {exc}", kind="error", stream=sys.stderr)
                 continue
 
+            if needs_restart:
+                if args.verbose:
+                    print_status(
+                        "Restarting Jekyll to reload updated site configuration", kind="warning"
+                    )
+                stop_jekyll_process(process)
+                process = start_jekyll_serve(
+                    output_dir,
+                    args.host,
+                    args.port,
+                    parser,
+                    verbose=args.verbose,
+                    open_browser_tab=False,
+                )
+                print_status(
+                    f"Rebuilt {result.pages_written} page(s), copied {result.assets_copied} asset(s), and reloaded config",
+                    kind="success",
+                    transient=not args.verbose,
+                )
+                continue
+
             print_status(
                 f"Rebuilt {result.pages_written} page(s), copied {result.assets_copied} asset(s)",
                 kind="success",
                 transient=not args.verbose,
             )
-
-            if needs_restart:
-                print_status(
-                    "Restarting Jekyll to reload updated site configuration", kind="warning"
-                )
-                stop_jekyll_process(process)
-                process = start_jekyll_serve(
-                    output_dir, args.host, args.port, parser, verbose=args.verbose
-                )
     except KeyboardInterrupt:
         clear_transient_status()
         return 0
@@ -370,12 +403,18 @@ def summarize_changed_paths(changed_paths: tuple[PurePosixPath, ...]) -> str:
     return f"{', '.join(names)} and {len(changed_paths) - 3} more"
 
 
+def next_dev_reload_token() -> str:
+    """Return a changing token that preview pages can poll for restart-safe reloads."""
+    return str(time.time_ns())
+
+
 def build_site(
     content_root: Path,
     output_dir: Path,
     theme_path: Path | None,
     parser: argparse.ArgumentParser,
     preserve_output_names: tuple[str, ...] = (),
+    dev_reload_token: str | None = None,
 ):
     """Generate the site or exit with a friendly parser error."""
     try:
@@ -384,6 +423,7 @@ def build_site(
             output_dir=output_dir,
             theme_path=theme_path,
             preserve_output_names=preserve_output_names,
+            dev_reload_token=dev_reload_token,
         )
     except MkpagesError as exc:
         parser.exit(status=2, message=f"mkpages: error: {exc}\n")
@@ -396,6 +436,7 @@ def generate_site_checked(
     output_dir: Path,
     theme_path: Path | None,
     preserve_output_names: tuple[str, ...] = (),
+    dev_reload_token: str | None = None,
 ):
     """Generate a site and raise regular Python exceptions for callers that want to recover."""
     return generate_site(
@@ -404,6 +445,7 @@ def generate_site_checked(
         explicit_theme=theme_path,
         preserve_output_names=preserve_output_names,
         allow_unmarked_reuse=output_dir.name == DEFAULT_OUTPUT_DIR.name,
+        dev_reload_token=dev_reload_token,
     )
 
 
@@ -412,13 +454,17 @@ def rebuild_site_from_staging(
     output_dir: Path,
     theme_path: Path | None,
     parser: argparse.ArgumentParser,
+    dev_reload_token: str | None = None,
 ):
     """Rebuild preview output via a staging tree to avoid tearing away live Jekyll inputs."""
-    staging_root = Path(
-        tempfile.mkdtemp(prefix=f"{output_dir.name}-staging-", dir=str(output_dir.parent))
-    )
+    staging_root = Path(tempfile.mkdtemp(prefix=f"{output_dir.name}-staging-"))
     try:
-        result = generate_site_checked(content_root, staging_root, theme_path)
+        result = generate_site_checked(
+            content_root,
+            staging_root,
+            theme_path,
+            dev_reload_token=dev_reload_token,
+        )
         sync_staged_output(staging_root, output_dir, preserve_names=JEKYLL_RUNTIME_NAMES)
         return result
     finally:
@@ -431,6 +477,7 @@ def start_jekyll_serve(
     port: int,
     parser: argparse.ArgumentParser,
     verbose: bool = False,
+    open_browser_tab: bool = True,
 ) -> subprocess.Popen:
     """Launch Jekyll serve with livereload enabled."""
     jekyll_bin = shutil.which("jekyll")
@@ -444,7 +491,8 @@ def start_jekyll_serve(
         )
 
     validate_output_dir(output_dir, parser)
-    threading.Timer(1.0, open_browser, args=(host, port)).start()
+    if open_browser_tab:
+        threading.Timer(1.0, open_browser, args=(host, port)).start()
     process = subprocess.Popen(
         [
             jekyll_bin,

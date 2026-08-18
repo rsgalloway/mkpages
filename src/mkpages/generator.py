@@ -17,6 +17,7 @@ except ImportError:  # pragma: no cover
 
 
 OUTPUT_MARKER = ".mkpages-output"
+DEV_RELOAD_TOKEN_PATH = PurePosixPath("assets/mkpages-preview-token.txt")
 DEFAULT_THEME_RESOURCE = "themes/default.css"
 TEMPLATE_DIR = "templates"
 CONFIG_FILE_NAME = "mkpages.yml"
@@ -114,6 +115,7 @@ def generate_site(
     explicit_theme: str | Path | None = None,
     preserve_output_names: tuple[str, ...] = (),
     allow_unmarked_reuse: bool = False,
+    dev_reload_token: str | None = None,
 ) -> GenerationResult:
     """Generate a Jekyll source tree from a markdown content root."""
     markdown_files = find_markdown_files(content_root)
@@ -135,6 +137,7 @@ def generate_site(
         navigation=site_config.navigation,
         favicon=site_config.favicon,
         theme_path=resolve_theme(content_root, explicit_theme, site_config.theme),
+        dev_reload_token=dev_reload_token,
     )
 
     pages_written = 0
@@ -254,11 +257,13 @@ def write_site_files(
     navigation: tuple[NavigationItem, ...],
     favicon: PurePosixPath | None,
     theme_path: Path,
+    dev_reload_token: str | None,
 ) -> None:
     """Write the shared Jekyll config, layout, includes, and theme."""
     write_config(output_dir, site_title, site_description)
-    write_layouts(output_dir, navigation, favicon)
+    write_layouts(output_dir, navigation, favicon, dev_reload_token)
     write_theme(output_dir, theme_path)
+    write_dev_reload_token(output_dir, dev_reload_token)
 
 
 def write_config(output_dir: Path, site_title: str, site_description: str) -> None:
@@ -275,6 +280,7 @@ def write_layouts(
     output_dir: Path,
     navigation: tuple[NavigationItem, ...],
     favicon: PurePosixPath | None,
+    dev_reload_token: str | None,
 ) -> None:
     """Write the shared layout and includes."""
     layout_dir = output_dir / "_layouts"
@@ -283,7 +289,11 @@ def write_layouts(
     includes_dir.mkdir(parents=True, exist_ok=True)
 
     (layout_dir / "default.html").write_text(
-        render_template("default.html.j2", favicon_markup=build_favicon_markup(favicon)),
+        render_template(
+            "default.html.j2",
+            favicon_markup=build_favicon_markup(favicon),
+            dev_reload_markup=build_dev_reload_markup(dev_reload_token),
+        ),
         encoding="utf-8",
     )
 
@@ -305,6 +315,17 @@ def write_theme(output_dir: Path, theme_path: Path) -> None:
     assets_dir = output_dir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(theme_path, assets_dir / "site.css")
+
+
+def write_dev_reload_token(output_dir: Path, dev_reload_token: str | None) -> None:
+    """Write the preview-only reload token file when enabled."""
+    token_path = output_dir / Path(DEV_RELOAD_TOKEN_PATH)
+    if dev_reload_token is None:
+        if token_path.exists():
+            token_path.unlink()
+        return
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    token_path.write_text(dev_reload_token + "\n", encoding="utf-8")
 
 
 def resolve_theme(
@@ -376,6 +397,20 @@ def build_favicon_markup(favicon: PurePosixPath | None) -> str:
 
     href = "{{ '/" + favicon.as_posix() + "' | relative_url }}"
     return f'    <link rel="icon" href="{href}">'
+
+
+def build_dev_reload_markup(dev_reload_token: str | None) -> str:
+    """Render preview-only polling markup that survives Jekyll restarts."""
+    if dev_reload_token is None:
+        return ""
+    token_url = "{{ '/" + DEV_RELOAD_TOKEN_PATH.as_posix() + "' | relative_url }}"
+    token_json = json.dumps(dev_reload_token)
+    return (
+        "    <script>\n"
+        f"      window.__MKPAGES_PREVIEW_TOKEN__ = {token_json};\n"
+        f"      window.__MKPAGES_PREVIEW_TOKEN_URL__ = {json.dumps(token_url)};\n"
+        "    </script>"
+    )
 
 
 def escape_html(text: str) -> str:
