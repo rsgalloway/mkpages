@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import os
 import subprocess
 import sys
 import tempfile
@@ -483,7 +484,7 @@ class CliTests(unittest.TestCase):
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            start_new_session=True,
+            start_new_session=os.name != "nt",
         )
 
     def test_start_jekyll_serve_uses_windows_safe_launch(self) -> None:
