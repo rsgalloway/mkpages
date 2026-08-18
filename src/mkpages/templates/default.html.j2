@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
     <meta name="description" content="{{ site.description }}">
+[[ favicon_markup ]]
     <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
+[[ dev_reload_markup ]]
     <script type="module">
       import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
 
@@ -90,6 +92,28 @@
       }
 
       document.addEventListener("DOMContentLoaded", async () => {
+        const previewToken = window.__MKPAGES_PREVIEW_TOKEN__;
+        const previewTokenUrl = window.__MKPAGES_PREVIEW_TOKEN_URL__;
+        if (typeof previewToken === "string" && typeof previewTokenUrl === "string") {
+          let lastPreviewToken = previewToken;
+          window.setInterval(async () => {
+            try {
+              const response = await fetch(`${previewTokenUrl}?t=${Date.now()}`, {
+                cache: "no-store",
+              });
+              if (!response.ok) {
+                return;
+              }
+              const nextToken = (await response.text()).trim();
+              if (nextToken && nextToken !== lastPreviewToken) {
+                window.location.reload();
+              }
+            } catch (error) {
+              // Jekyll may be restarting briefly; polling will resume automatically.
+            }
+          }, 1200);
+        }
+
         function readThemeVar(name, fallback) {
           const value = getComputedStyle(document.documentElement)
             .getPropertyValue(name)
