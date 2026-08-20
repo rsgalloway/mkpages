@@ -35,13 +35,13 @@ BUNDLED_THEMES = {
 THEME_CARD_TEMPLATES = {
     "default": "default",
     "dark": "dark",
-    "developer": "developer",
-    "matrix": "developer",
-    "minimal": "minimal",
+    "developer": "dark",
+    "matrix": "dark",
+    "minimal": "default",
     "pulsar": "dark",
-    "retro": "minimal",
+    "retro": "default",
 }
-SUPPORTED_CARD_TEMPLATES = frozenset({"default", "dark", "developer", "minimal"})
+SUPPORTED_CARD_TEMPLATES = frozenset({"default", "dark"})
 EXCLUDED_NAMES = {
     ".git",
     ".github",
@@ -643,10 +643,14 @@ def build_social_card_context(
 ) -> SocialCardContext:
     """Build the render context for the bundled default social card template."""
     title_x = "88"
-    title_y = "286"
+    title_y = "184"
     description_fill = "#52607a"
+    description_y = 316
+    description_line_length = 40
     if template_name == "dark":
-        description_fill = "#ddd6fe"
+        description_fill = "#a0aec0"
+        description_y = 316
+        description_line_length = 40
     logo_markup = ""
     if art_path is not None:
         encoded_logo = encode_data_uri(art_path)
@@ -657,12 +661,18 @@ def build_social_card_context(
             logo_height = 136
             logo_opacity = "0.96"
             logo_filter = ""
+            if template_name == "default":
+                logo_x = 790
+                logo_y = 90
+                logo_width = 324
+                logo_height = 444
+                logo_opacity = "0.12"
             if template_name == "dark":
-                logo_x = 668
-                logo_y = 34
+                logo_x = 700
+                logo_y = 10
                 logo_width = 470
-                logo_height = 560
-                logo_opacity = "0.18"
+                logo_height = 630
+                logo_opacity = "0.22"
                 logo_filter = ' filter="url(#art-darken)"'
             logo_markup = (
                 f'  <image href="{encoded_logo}" x="{logo_x}" y="{logo_y}" width="{logo_width}" '
@@ -673,9 +683,9 @@ def build_social_card_context(
         title=escape_html(truncate_text(title, 40)),
         site_name=escape_html(truncate_text(site_name, 18).upper()),
         description_markup=render_svg_text_lines(
-            wrap_text(description, 52, max_lines=2),
+            wrap_text(description, description_line_length, max_lines=2),
             x=88,
-            y=388,
+            y=description_y,
             line_height=40,
             fill=description_fill,
             font_size=30,

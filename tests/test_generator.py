@@ -288,21 +288,21 @@ class GenerationTests(unittest.TestCase):
 
         self.assertIn("unsupported card template: glossy", str(ctx.exception))
         self.assertIn(
-            "Built-in card templates: dark, default, developer, minimal",
+            "Built-in card templates: dark, default",
             str(ctx.exception),
         )
 
     def test_explicit_card_template_overrides_theme_default(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
         (self.content_root / "mkpages.yml").write_text(
-            "theme: dark\n" "card:\n" "  template: minimal\n",
+            "theme: dark\n" "card:\n" "  template: default\n",
             encoding="utf-8",
         )
 
         generate_site(self.content_root, self.output_dir)
 
         social_card_svg = (self.output_dir / Path(SOCIAL_CARD_PATH)).read_text(encoding="utf-8")
-        self.assertIn('data-mkpages-card-template="minimal"', social_card_svg)
+        self.assertIn('data-mkpages-card-template="default"', social_card_svg)
 
     def test_custom_theme_css_uses_default_card_template(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")

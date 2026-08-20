@@ -1,21 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="mkpages social card" data-mkpages-card-template="dark">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#261d7a"/>
-      <stop offset="100%" stop-color="#17104f"/>
+      <stop offset="0%" stop-color="#0a0f14"/>
+      <stop offset="100%" stop-color="#0d1117"/>
     </linearGradient>
     <filter id="art-darken" x="-20%" y="-20%" width="140%" height="140%">
       <feColorMatrix
         type="matrix"
-        values="0.32 0 0 0 0
-                0 0.32 0 0 0
-                0 0 0.32 0 0
+        values="0.18 0 0 0 0
+                0 0.18 0 0 0
+                0 0 0.18 0 0
                 0 0 0 1 0"
       />
     </filter>
+    <radialGradient id="glow" cx="100%" cy="0%" r="58%">
+      <stop offset="0%" stop-color="rgba(99, 179, 237, 0.16)"/>
+      <stop offset="100%" stop-color="rgba(99, 179, 237, 0)"/>
+    </radialGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect x="32" y="44" width="1136" height="542" rx="26" fill="rgba(12, 10, 54, 0.16)" stroke="rgba(190, 180, 255, 0.18)" stroke-width="2"/>
-  <text x="84" y="248" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="82" font-weight="800">[[ title ]]</text>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect x="34" y="44" width="1132" height="542" rx="26" fill="rgba(18, 24, 34, 0.94)" stroke="#2d3748" stroke-width="2"/>
+  <text x="88" y="184" fill="#edf2f7" font-family="Segoe UI, Arial, sans-serif" font-size="84" font-weight="800">[[ title ]]</text>
 [[ description_markup ]]
 [[ logo_markup ]]</svg>

@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="mkpages social card" data-mkpages-card-template="minimal">
   <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f3efff"/>
+      <stop offset="100%" stop-color="#f7f4ff"/>
+    </linearGradient>
     <pattern id="doc-pattern" width="120" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
       <g opacity="0.9">
         <path d="M24 18 L58 18 L78 38 L78 84 L24 84 Z" fill="none" stroke="#c4b5fd" stroke-width="3"/>
@@ -9,11 +13,10 @@
       </g>
     </pattern>
   </defs>
-  <rect width="1200" height="630" fill="#f6f2ff"/>
-  <rect x="36" y="54" width="1128" height="522" rx="26" fill="#f7f4ff" stroke="#e5defa" stroke-width="2"/>
-  <rect x="716" y="54" width="448" height="522" rx="26" fill="url(#doc-pattern)"/>
-  <text x="84" y="256" fill="#081226" font-family="Segoe UI, Arial, sans-serif" font-size="84" font-weight="800">[[ title ]]</text>
-  <line x1="84" y1="290" x2="246" y2="290" stroke="#6d4aff" stroke-width="6" stroke-linecap="round"/>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="34" y="44" width="1132" height="542" rx="26" fill="#f7f4ff" stroke="#e5defa" stroke-width="2"/>
+  <rect x="772" y="44" width="394" height="542" rx="26" fill="url(#doc-pattern)" opacity="0.84"/>
+  <text x="88" y="184" fill="#081226" font-family="Segoe UI, Arial, sans-serif" font-size="84" font-weight="800">[[ title ]]</text>
 [[ description_markup ]]
-  <rect x="36" y="54" width="1128" height="522" rx="26" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+  <rect x="34" y="44" width="1132" height="542" rx="26" fill="none" stroke="rgba(255,255,255,0.24)" stroke-width="1"/>
 [[ logo_markup ]]</svg>
