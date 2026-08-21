@@ -271,6 +271,30 @@ class GenerationTests(unittest.TestCase):
         social_card_svg = (self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).read_text(encoding="utf-8")
         self.assertIn("data:image/svg+xml;base64,", social_card_svg)
 
+    def test_non_linux_build_uses_svg_card_without_failing(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        with mock.patch("mkpages.generator.sys.platform", "darwin"):
+            result = generate_site(self.content_root, self.output_dir)
+
+        layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+        self.assertTrue((self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).exists())
+        self.assertFalse((self.output_dir / Path(SOCIAL_CARD_PATH)).exists())
+        self.assertIn("assets/mkpages/social-card.svg", layout_html)
+        self.assertIn("only available on Linux", result.warnings[0])
+
+    def test_rasterizer_failure_uses_svg_card_without_failing(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        with mock.patch("mkpages.generator.render_social_card_png", return_value=False):
+            result = generate_site(self.content_root, self.output_dir)
+
+        layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+        self.assertTrue((self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).exists())
+        self.assertFalse((self.output_dir / Path(SOCIAL_CARD_PATH)).exists())
+        self.assertIn("assets/mkpages/social-card.svg", layout_html)
+        self.assertIn("could not render", result.warnings[0])
+
     def test_generate_site_can_embed_preview_reload_token(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
 

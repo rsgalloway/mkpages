@@ -7,7 +7,8 @@ import json
 import os
 import re
 import shutil
-from dataclasses import dataclass
+import sys
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Iterable
 
@@ -93,6 +94,7 @@ class GenerationResult:
     output_dir: Path
     pages_written: int
     assets_copied: int
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -204,7 +206,7 @@ def generate_site(
     )
     write_marker(output_dir)
     assets_copied = copy_non_markdown_files(content_root, output_dir)
-    write_site_files(
+    warnings = write_site_files(
         output_dir,
         site_title=site_title,
         site_description=site_description,
@@ -221,7 +223,10 @@ def generate_site(
         pages_written += 1
 
     return GenerationResult(
-        output_dir=output_dir, pages_written=pages_written, assets_copied=assets_copied
+        output_dir=output_dir,
+        pages_written=pages_written,
+        assets_copied=assets_copied,
+        warnings=warnings,
     )
 
 
@@ -333,14 +338,15 @@ def write_site_files(
     theme_path: Path,
     dev_reload_token: str | None,
     resolved_card: ResolvedCard,
-) -> None:
+) -> tuple[str, ...]:
     """Write the shared Jekyll config, layout, includes, and theme."""
     write_config(output_dir, site_title, site_description)
-    write_layouts(output_dir, navigation, favicon, dev_reload_token, resolved_card)
+    rendered_card, card_warning = write_social_card(output_dir, resolved_card)
+    write_layouts(output_dir, navigation, favicon, dev_reload_token, rendered_card)
     write_theme(output_dir, theme_path)
     write_dev_reload_token(output_dir, dev_reload_token)
-    write_social_card(output_dir, resolved_card)
     write_default_favicon(output_dir, favicon)
+    return (card_warning,) if card_warning else ()
 
 
 def write_config(output_dir: Path, site_title: str, site_description: str) -> None:
@@ -417,15 +423,17 @@ def write_dev_reload_token(output_dir: Path, dev_reload_token: str | None) -> No
     token_path.write_text(dev_reload_token + "\n", encoding="utf-8")
 
 
-def write_social_card(output_dir: Path, resolved_card: ResolvedCard) -> None:
-    """Write managed SVG source and PNG social-card assets when enabled."""
+def write_social_card(
+    output_dir: Path, resolved_card: ResolvedCard
+) -> tuple[ResolvedCard, str | None]:
+    """Write managed card assets and return the compatible metadata target."""
     svg_path = output_dir / Path(SOCIAL_CARD_SVG_PATH)
     png_path = output_dir / Path(SOCIAL_CARD_PATH)
     if not resolved_card.enabled or not resolved_card.generated:
         for output_path in (svg_path, png_path):
             if output_path.exists():
                 output_path.unlink()
-        return
+        return resolved_card, None
 
     svg_path.parent.mkdir(parents=True, exist_ok=True)
     svg = render_social_card_svg(
@@ -436,22 +444,37 @@ def write_social_card(output_dir: Path, resolved_card: ResolvedCard) -> None:
         template_name=resolved_card.template,
     )
     svg_path.write_text(svg, encoding="utf-8")
-    render_social_card_png(svg, png_path)
+    if not sys.platform.startswith("linux"):
+        if png_path.exists():
+            png_path.unlink()
+        return (
+            replace(resolved_card, image_path=SOCIAL_CARD_SVG_PATH),
+            "social card PNG generation is only available on Linux; using SVG fallback",
+        )
+    if not render_social_card_png(svg, png_path):
+        if png_path.exists():
+            png_path.unlink()
+        return (
+            replace(resolved_card, image_path=SOCIAL_CARD_SVG_PATH),
+            "could not render social card PNG with CairoSVG; using SVG fallback",
+        )
+    return resolved_card, None
 
 
-def render_social_card_png(svg: str, output_path: Path) -> None:
-    """Rasterize an SVG card to the PNG format required by social platforms."""
+def render_social_card_png(svg: str, output_path: Path) -> bool:
+    """Render a PNG card when the optional Linux Cairo stack is available."""
     try:
         import cairosvg
-    except ImportError as error:  # pragma: no cover - declared project dependency
-        raise MkpagesError("CairoSVG is required to generate social card images") from error
 
-    cairosvg.svg2png(
-        bytestring=svg.encode("utf-8"),
-        write_to=str(output_path),
-        output_width=1200,
-        output_height=630,
-    )
+        cairosvg.svg2png(
+            bytestring=svg.encode("utf-8"),
+            write_to=str(output_path),
+            output_width=1200,
+            output_height=630,
+        )
+    except Exception:
+        return False
+    return True
 
 
 def resolve_theme(
