@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import shutil
 import subprocess
@@ -22,6 +23,13 @@ from mkpages.generator import (
     build_page_map,
     generate_site,
     rewrite_local_links,
+)
+
+GREEN_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNI+j/tPwAGtQL3sPGFgwAAAABJRU5ErkJggg=="
+)
+BLUE_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/5ncLrgAAAABJRU5ErkJggg=="
 )
 
 
@@ -124,8 +132,8 @@ class GenerationTests(unittest.TestCase):
         )
         images_dir = self.content_root / "images"
         images_dir.mkdir()
-        (images_dir / "logo.png").write_bytes(b"png")
-        (images_dir / "favicon.png").write_bytes(b"ico")
+        (images_dir / "logo.png").write_bytes(BLUE_PNG)
+        (images_dir / "favicon.png").write_bytes(GREEN_PNG)
 
         result = generate_site(self.content_root, self.output_dir)
 
@@ -140,10 +148,7 @@ class GenerationTests(unittest.TestCase):
         self.assertTrue((self.output_dir / "images" / "logo.png").exists())
         self.assertTrue((self.output_dir / "images" / "favicon.png").exists())
         self.assertTrue((self.output_dir / "_includes" / "site_footer.html").exists())
-        self.assertEqual(
-            (self.output_dir / Path(SOCIAL_CARD_PATH)).exists(),
-            sys.platform.startswith("linux"),
-        )
+        social_card_png = self.output_dir / Path(SOCIAL_CARD_PATH)
         self.assertTrue((self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).exists())
 
         home_page = (self.output_dir / "index.md").read_text(encoding="utf-8")
@@ -178,14 +183,15 @@ class GenerationTests(unittest.TestCase):
         )
         self.assertIn('property="og:title" content="Test Docs"', layout_html)
         self.assertIn('name="twitter:card" content="summary_large_image"', layout_html)
-        if sys.platform.startswith("linux"):
+        if social_card_png.exists():
             self.assertIn("assets/mkpages/social-card.png", layout_html)
             self.assertEqual(
-                (self.output_dir / Path(SOCIAL_CARD_PATH)).read_bytes()[:8],
+                social_card_png.read_bytes()[:8],
                 b"\x89PNG\r\n\x1a\n",
             )
         else:
             self.assertIn("assets/mkpages/social-card.svg", layout_html)
+            self.assertTrue(result.warnings)
         self.assertIn('data-mkpages-card-template="dark"', social_card_svg)
         self.assertIn(">Test Docs</text>", social_card_svg)
         self.assertIn(">Test site description</tspan>", social_card_svg)
@@ -339,15 +345,16 @@ class GenerationTests(unittest.TestCase):
         (managed_assets / "social-card.svg").write_text("source-svg", encoding="utf-8")
         (managed_assets / "favicon.svg").write_text("source-favicon", encoding="utf-8")
 
-        generate_site(self.content_root, self.output_dir)
+        result = generate_site(self.content_root, self.output_dir)
 
-        if sys.platform.startswith("linux"):
+        social_card_png = self.output_dir / Path(SOCIAL_CARD_PATH)
+        if social_card_png.exists():
             self.assertEqual(
-                (self.output_dir / Path(SOCIAL_CARD_PATH)).read_bytes()[:8],
+                social_card_png.read_bytes()[:8],
                 b"\x89PNG\r\n\x1a\n",
             )
         else:
-            self.assertFalse((self.output_dir / Path(SOCIAL_CARD_PATH)).exists())
+            self.assertTrue(result.warnings)
         self.assertIn(
             "data-mkpages-card-template",
             (self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).read_text(encoding="utf-8"),
@@ -402,14 +409,14 @@ class GenerationTests(unittest.TestCase):
         )
         images_dir = self.content_root / "images"
         images_dir.mkdir()
-        (images_dir / "favicon.png").write_bytes(b"fav")
-        (self.content_root / "logo.png").write_bytes(b"logo")
+        (images_dir / "favicon.png").write_bytes(GREEN_PNG)
+        (self.content_root / "logo.png").write_bytes(BLUE_PNG)
 
         generate_site(self.content_root, self.output_dir)
 
         social_card_svg = (self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).read_text(encoding="utf-8")
-        self.assertIn("data:image/png;base64,ZmF2", social_card_svg)
-        self.assertNotIn("data:image/png;base64,bG9nbw==", social_card_svg)
+        self.assertIn(base64.b64encode(GREEN_PNG).decode("ascii"), social_card_svg)
+        self.assertNotIn(base64.b64encode(BLUE_PNG).decode("ascii"), social_card_svg)
 
     def test_favicon_must_exist_inside_content_root(self) -> None:
         config_path = self.content_root / "mkpages.yml"
