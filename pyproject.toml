@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mkpages"
-version = "0.3.0"
+version = "0.3.1"
 description = "Generate Jekyll source trees from Markdown folder structures."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
