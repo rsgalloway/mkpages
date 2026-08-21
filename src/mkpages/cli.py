@@ -183,6 +183,7 @@ def run_build(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         f"Built {result.pages_written} page(s) and copied {result.assets_copied} asset(s) into {result.output_dir}",
         kind="success",
     )
+    print_generation_warnings(result)
     return 0
 
 
@@ -224,6 +225,7 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         f"Built {result.pages_written} page(s) and copied {result.assets_copied} asset(s) into {output_dir}",
         kind="success",
     )
+    print_generation_warnings(result)
 
     process: subprocess.Popen | None = None
 
@@ -299,6 +301,7 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
                     kind="success",
                     transient=not args.verbose,
                 )
+                print_generation_warnings(result)
                 continue
 
             print_status(
@@ -306,6 +309,7 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
                 kind="success",
                 transient=not args.verbose,
             )
+            print_generation_warnings(result)
     except KeyboardInterrupt:
         clear_transient_status()
         return 0
@@ -377,6 +381,15 @@ def clear_transient_status() -> None:
         return
     print(file=sys.stdout, flush=True)
     _TRANSIENT_STATUS_ACTIVE = False
+
+
+def print_generation_warnings(result) -> None:
+    """Report non-fatal generation fallbacks through the normal CLI status UI."""
+    warnings = getattr(result, "warnings", ())
+    if not isinstance(warnings, tuple):
+        return
+    for warning in warnings:
+        print_status(warning, kind="warning", stream=sys.stderr)
 
 
 def console_style() -> ConsoleStyle:
