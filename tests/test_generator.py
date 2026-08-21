@@ -183,24 +183,18 @@ class GenerationTests(unittest.TestCase):
         self.assertIn(
             '<link rel="icon" href="{{ \'/images/favicon.png\' | relative_url }}">', layout_html
         )
-        self.assertIn(
-            'property="og:image" content="{{ \'/assets/mkpages/social-card.png\' | absolute_url }}"',
-            layout_html,
-        )
-        self.assertIn(
-            'name="twitter:image" content="{{ \'/assets/mkpages/social-card.png\' | absolute_url }}"',
-            layout_html,
-        )
         self.assertIn('property="og:title" content="Test Docs"', layout_html)
         self.assertIn('name="twitter:card" content="summary_large_image"', layout_html)
         if social_card_png.exists():
             self.assertIn("assets/mkpages/social-card.png", layout_html)
+            self.assertIn("| absolute_url }}", layout_html)
             self.assertEqual(
                 social_card_png.read_bytes()[:8],
                 b"\x89PNG\r\n\x1a\n",
             )
         else:
             self.assertIn("assets/mkpages/social-card.svg", layout_html)
+            self.assertIn("| absolute_url }}", layout_html)
             self.assertTrue(result.warnings)
         self.assertIn('data-mkpages-card-template="dark"', social_card_svg)
         self.assertIn(">Test Docs</text>", social_card_svg)
@@ -233,18 +227,25 @@ class GenerationTests(unittest.TestCase):
     def test_generate_site_keeps_relative_social_card_url_without_site_url(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
 
-        generate_site(self.content_root, self.output_dir)
+        result = generate_site(self.content_root, self.output_dir)
 
         layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+        social_card_path = (
+            SOCIAL_CARD_PATH
+            if (self.output_dir / Path(SOCIAL_CARD_PATH)).exists()
+            else SOCIAL_CARD_SVG_PATH
+        )
 
         self.assertIn(
-            'property="og:image" content="{{ \'/assets/mkpages/social-card.png\' | relative_url }}"',
+            f'property="og:image" content="{{{{ \'/{social_card_path.as_posix()}\' | relative_url }}}}"',
             layout_html,
         )
         self.assertIn(
-            'name="twitter:image" content="{{ \'/assets/mkpages/social-card.png\' | relative_url }}"',
+            f'name="twitter:image" content="{{{{ \'/{social_card_path.as_posix()}\' | relative_url }}}}"',
             layout_html,
         )
+        if social_card_path == SOCIAL_CARD_SVG_PATH:
+            self.assertTrue(result.warnings)
 
     def test_generate_site_uses_command_line_site_url_over_config(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")

@@ -12,10 +12,10 @@
 
 ## Workflow with automatic site URL
 
-GitHub Pages knows the configured custom domain before the site is built.
-Give `actions/configure-pages` an `id`, then pass its `origin` and `base_path`
-outputs to `mkpages`. This produces absolute social-card image URLs without
-hard-coding a domain in `mkpages.yml`.
+GitHub Pages knows the configured hostname before the site is built. Give
+`actions/configure-pages` an `id`, then pass its `host` and `base_path` outputs
+to `mkpages`. Prefixing the hostname with `https://` ensures social-card image
+URLs use HTTPS without hard-coding a domain in `mkpages.yml`.
 
 ```yaml
 name: Deploy Pages
@@ -42,7 +42,7 @@ jobs:
       - run: python -m pip install mkpages
       - run: >-
           mkpages build docs/ --output .mkpages
-          --url "${{ steps.pages.outputs.origin }}"
+          --url "https://${{ steps.pages.outputs.host }}"
           --baseurl "${{ steps.pages.outputs.base_path }}"
       - uses: actions/jekyll-build-pages@v1
         with:
@@ -63,10 +63,10 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
-`origin` is the site origin, such as `https://mkpages.dev`; `base_path` is
-empty for a custom domain or user site, and is typically `/repository-name`
-for a project site. The CLI options override `url` and `baseurl` in
-`mkpages.yml` only for that build.
+`host` is the configured hostname, such as `mkpages.dev`; `base_path` is empty
+for a custom domain or user site, and is typically `/repository-name` for a
+project site. The CLI options override `url` and `baseurl` in `mkpages.yml`
+only for that build.
 
 ## Why this works well
 

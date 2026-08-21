@@ -40,7 +40,7 @@ jobs:
       - name: Generate mkpages source tree
         run: >-
           mkpages build docs/
-          --url "${{ steps.pages.outputs.origin }}"
+          --url "https://${{ steps.pages.outputs.host }}"
           --baseurl "${{ steps.pages.outputs.base_path }}"
 
       - name: Build Jekyll site
