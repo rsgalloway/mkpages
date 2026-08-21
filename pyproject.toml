@@ -12,6 +12,7 @@ license = { text = "BSD-3-Clause" }
 authors = [{ name = "Ryan Galloway", email = "ryan@rsgalloway.com" }]
 keywords = ["markdown", "jekyll", "static-site", "github-pages", "cli"]
 dependencies = [
+  "CairoSVG>=2.7",
   'importlib_resources>=5.10; python_version < "3.9"',
 ]
 classifiers = [

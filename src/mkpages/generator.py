@@ -19,8 +19,9 @@ except ImportError:  # pragma: no cover
 
 OUTPUT_MARKER = ".mkpages-output"
 DEV_RELOAD_TOKEN_PATH = PurePosixPath("assets/mkpages-preview-token.txt")
-SOCIAL_CARD_PATH = PurePosixPath("assets/_mkpages/social-card.svg")
-DEFAULT_FAVICON_PATH = PurePosixPath("assets/_mkpages/favicon.svg")
+SOCIAL_CARD_PATH = PurePosixPath("assets/mkpages/social-card.png")
+SOCIAL_CARD_SVG_PATH = PurePosixPath("assets/mkpages/social-card.svg")
+DEFAULT_FAVICON_PATH = PurePosixPath("assets/mkpages/favicon.svg")
 DEFAULT_FAVICON_RESOURCE = "assets/favicon.svg"
 DEFAULT_THEME_RESOURCE = "themes/default.css"
 TEMPLATE_DIR = "templates"
@@ -202,6 +203,7 @@ def generate_site(
         allow_unmarked_reuse=allow_unmarked_reuse,
     )
     write_marker(output_dir)
+    assets_copied = copy_non_markdown_files(content_root, output_dir)
     write_site_files(
         output_dir,
         site_title=site_title,
@@ -218,7 +220,6 @@ def generate_site(
         write_page(content_root, output_dir, page, page_map, content_index)
         pages_written += 1
 
-    assets_copied = copy_non_markdown_files(content_root, output_dir)
     return GenerationResult(
         output_dir=output_dir, pages_written=pages_written, assets_copied=assets_copied
     )
@@ -417,23 +418,39 @@ def write_dev_reload_token(output_dir: Path, dev_reload_token: str | None) -> No
 
 
 def write_social_card(output_dir: Path, resolved_card: ResolvedCard) -> None:
-    """Write the managed social card asset when mkpages generates it."""
-    output_path = output_dir / Path(SOCIAL_CARD_PATH)
+    """Write managed SVG source and PNG social-card assets when enabled."""
+    svg_path = output_dir / Path(SOCIAL_CARD_SVG_PATH)
+    png_path = output_dir / Path(SOCIAL_CARD_PATH)
     if not resolved_card.enabled or not resolved_card.generated:
-        if output_path.exists():
-            output_path.unlink()
+        for output_path in (svg_path, png_path):
+            if output_path.exists():
+                output_path.unlink()
         return
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        render_social_card_svg(
-            title=resolved_card.title,
-            description=resolved_card.description,
-            site_name=resolved_card.site_name,
-            art_path=resolved_card.art_path,
-            template_name=resolved_card.template,
-        ),
-        encoding="utf-8",
+    svg_path.parent.mkdir(parents=True, exist_ok=True)
+    svg = render_social_card_svg(
+        title=resolved_card.title,
+        description=resolved_card.description,
+        site_name=resolved_card.site_name,
+        art_path=resolved_card.art_path,
+        template_name=resolved_card.template,
+    )
+    svg_path.write_text(svg, encoding="utf-8")
+    render_social_card_png(svg, png_path)
+
+
+def render_social_card_png(svg: str, output_path: Path) -> None:
+    """Rasterize an SVG card to the PNG format required by social platforms."""
+    try:
+        import cairosvg
+    except ImportError as error:  # pragma: no cover - declared project dependency
+        raise MkpagesError("CairoSVG is required to generate social card images") from error
+
+    cairosvg.svg2png(
+        bytestring=svg.encode("utf-8"),
+        write_to=str(output_path),
+        output_width=1200,
+        output_height=630,
     )
 
 
