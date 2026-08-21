@@ -140,7 +140,10 @@ class GenerationTests(unittest.TestCase):
         self.assertTrue((self.output_dir / "images" / "logo.png").exists())
         self.assertTrue((self.output_dir / "images" / "favicon.png").exists())
         self.assertTrue((self.output_dir / "_includes" / "site_footer.html").exists())
-        self.assertTrue((self.output_dir / Path(SOCIAL_CARD_PATH)).exists())
+        self.assertEqual(
+            (self.output_dir / Path(SOCIAL_CARD_PATH)).exists(),
+            sys.platform.startswith("linux"),
+        )
         self.assertTrue((self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).exists())
 
         home_page = (self.output_dir / "index.md").read_text(encoding="utf-8")
@@ -175,11 +178,14 @@ class GenerationTests(unittest.TestCase):
         )
         self.assertIn('property="og:title" content="Test Docs"', layout_html)
         self.assertIn('name="twitter:card" content="summary_large_image"', layout_html)
-        self.assertIn("assets/mkpages/social-card.png", layout_html)
-        self.assertEqual(
-            (self.output_dir / Path(SOCIAL_CARD_PATH)).read_bytes()[:8],
-            b"\x89PNG\r\n\x1a\n",
-        )
+        if sys.platform.startswith("linux"):
+            self.assertIn("assets/mkpages/social-card.png", layout_html)
+            self.assertEqual(
+                (self.output_dir / Path(SOCIAL_CARD_PATH)).read_bytes()[:8],
+                b"\x89PNG\r\n\x1a\n",
+            )
+        else:
+            self.assertIn("assets/mkpages/social-card.svg", layout_html)
         self.assertIn('data-mkpages-card-template="dark"', social_card_svg)
         self.assertIn(">Test Docs</text>", social_card_svg)
         self.assertIn(">Test site description</tspan>", social_card_svg)
@@ -286,8 +292,9 @@ class GenerationTests(unittest.TestCase):
     def test_rasterizer_failure_uses_svg_card_without_failing(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
 
-        with mock.patch("mkpages.generator.render_social_card_png", return_value=False):
-            result = generate_site(self.content_root, self.output_dir)
+        with mock.patch("mkpages.generator.sys.platform", "linux"):
+            with mock.patch("mkpages.generator.render_social_card_png", return_value=False):
+                result = generate_site(self.content_root, self.output_dir)
 
         layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
         self.assertTrue((self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).exists())
@@ -334,10 +341,13 @@ class GenerationTests(unittest.TestCase):
 
         generate_site(self.content_root, self.output_dir)
 
-        self.assertEqual(
-            (self.output_dir / Path(SOCIAL_CARD_PATH)).read_bytes()[:8],
-            b"\x89PNG\r\n\x1a\n",
-        )
+        if sys.platform.startswith("linux"):
+            self.assertEqual(
+                (self.output_dir / Path(SOCIAL_CARD_PATH)).read_bytes()[:8],
+                b"\x89PNG\r\n\x1a\n",
+            )
+        else:
+            self.assertFalse((self.output_dir / Path(SOCIAL_CARD_PATH)).exists())
         self.assertIn(
             "data-mkpages-card-template",
             (self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).read_text(encoding="utf-8"),
