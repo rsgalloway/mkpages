@@ -77,6 +77,16 @@ def add_build_options(parser: argparse.ArgumentParser) -> None:
         "--theme",
         help="Optional path to a CSS file to apply as the generated site theme.",
     )
+    parser.add_argument(
+        "--url",
+        dest="site_url",
+        help="Canonical site origin to write to the generated Jekyll configuration.",
+    )
+    parser.add_argument(
+        "--baseurl",
+        dest="site_baseurl",
+        help="Site subpath to write to the generated Jekyll configuration.",
+    )
 
 
 def add_verbose_option(parser: argparse.ArgumentParser) -> None:
@@ -177,7 +187,14 @@ def build_root_parser() -> argparse.ArgumentParser:
 def run_build(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     """Generate the Jekyll source tree."""
     content_root, output_dir, theme_path = resolve_common_paths(args, parser)
-    result = build_site(content_root, output_dir, theme_path, parser)
+    result = build_site(
+        content_root,
+        output_dir,
+        theme_path,
+        parser,
+        site_url=args.site_url,
+        site_baseurl=args.site_baseurl,
+    )
 
     print_status(
         f"Built {result.pages_written} page(s) and copied {result.assets_copied} asset(s) into {result.output_dir}",
@@ -220,6 +237,8 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         theme_path,
         parser,
         dev_reload_token=next_dev_reload_token(),
+        site_url=args.site_url,
+        site_baseurl=args.site_baseurl,
     )
     print_status(
         f"Built {result.pages_written} page(s) and copied {result.assets_copied} asset(s) into {output_dir}",
@@ -272,6 +291,8 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
                     theme_path,
                     parser,
                     dev_reload_token=next_dev_reload_token(),
+                    site_url=args.site_url,
+                    site_baseurl=args.site_baseurl,
                 )
             except MkpagesError as exc:
                 clear_transient_status()
@@ -428,6 +449,8 @@ def build_site(
     parser: argparse.ArgumentParser,
     preserve_output_names: tuple[str, ...] = (),
     dev_reload_token: str | None = None,
+    site_url: str | None = None,
+    site_baseurl: str | None = None,
 ):
     """Generate the site or exit with a friendly parser error."""
     try:
@@ -437,6 +460,8 @@ def build_site(
             theme_path=theme_path,
             preserve_output_names=preserve_output_names,
             dev_reload_token=dev_reload_token,
+            site_url=site_url,
+            site_baseurl=site_baseurl,
         )
     except MkpagesError as exc:
         parser.exit(status=2, message=f"mkpages: error: {exc}\n")
@@ -450,6 +475,8 @@ def generate_site_checked(
     theme_path: Path | None,
     preserve_output_names: tuple[str, ...] = (),
     dev_reload_token: str | None = None,
+    site_url: str | None = None,
+    site_baseurl: str | None = None,
 ):
     """Generate a site and raise regular Python exceptions for callers that want to recover."""
     return generate_site(
@@ -459,6 +486,8 @@ def generate_site_checked(
         preserve_output_names=preserve_output_names,
         allow_unmarked_reuse=output_dir.name == DEFAULT_OUTPUT_DIR.name,
         dev_reload_token=dev_reload_token,
+        site_url=site_url,
+        site_baseurl=site_baseurl,
     )
 
 
@@ -468,6 +497,8 @@ def rebuild_site_from_staging(
     theme_path: Path | None,
     parser: argparse.ArgumentParser,
     dev_reload_token: str | None = None,
+    site_url: str | None = None,
+    site_baseurl: str | None = None,
 ):
     """Rebuild preview output via a staging tree to avoid tearing away live Jekyll inputs."""
     staging_root = Path(tempfile.mkdtemp(prefix=f"{output_dir.name}-staging-"))
@@ -477,6 +508,8 @@ def rebuild_site_from_staging(
             staging_root,
             theme_path,
             dev_reload_token=dev_reload_token,
+            site_url=site_url,
+            site_baseurl=site_baseurl,
         )
         sync_staged_output(staging_root, output_dir, preserve_names=JEKYLL_RUNTIME_NAMES)
         return result

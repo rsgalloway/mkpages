@@ -119,6 +119,7 @@ class GenerationTests(unittest.TestCase):
         (self.content_root / "mkpages.yml").write_text(
             "title: Test Docs\n"
             "description: Test site description\n"
+            "url: https://mkpages.dev\n"
             "theme: dark\n"
             "favicon: images/favicon.png\n"
             "navigation:\n"
@@ -171,6 +172,7 @@ class GenerationTests(unittest.TestCase):
         self.assertIn("![Logo](../images/logo.png)", guide_page)
         self.assertIn('title: "Test Docs"', config_text)
         self.assertIn('description: "Test site description"', config_text)
+        self.assertIn('url: "https://mkpages.dev"', config_text)
         self.assertIn('className = "header-anchor"', layout_html)
         self.assertIn('className = "copy-button"', layout_html)
         self.assertIn('class="copy-icon"', layout_html)
@@ -180,6 +182,14 @@ class GenerationTests(unittest.TestCase):
         )
         self.assertIn(
             '<link rel="icon" href="{{ \'/images/favicon.png\' | relative_url }}">', layout_html
+        )
+        self.assertIn(
+            'property="og:image" content="{{ \'/assets/mkpages/social-card.png\' | absolute_url }}"',
+            layout_html,
+        )
+        self.assertIn(
+            'name="twitter:image" content="{{ \'/assets/mkpages/social-card.png\' | absolute_url }}"',
+            layout_html,
         )
         self.assertIn('property="og:title" content="Test Docs"', layout_html)
         self.assertIn('name="twitter:card" content="summary_large_image"', layout_html)
@@ -219,6 +229,43 @@ class GenerationTests(unittest.TestCase):
         self.assertIn(".copy-button", theme_css)
         self.assertNotIn(".code-block.terminal::before", theme_css)
         self.assertIn(".highlight .", theme_css)
+
+    def test_generate_site_keeps_relative_social_card_url_without_site_url(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir)
+
+        layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+
+        self.assertIn(
+            'property="og:image" content="{{ \'/assets/mkpages/social-card.png\' | relative_url }}"',
+            layout_html,
+        )
+        self.assertIn(
+            'name="twitter:image" content="{{ \'/assets/mkpages/social-card.png\' | relative_url }}"',
+            layout_html,
+        )
+
+    def test_generate_site_uses_command_line_site_url_over_config(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+        (self.content_root / "mkpages.yml").write_text(
+            "url: https://configured.example\nbaseurl: /configured\n", encoding="utf-8"
+        )
+
+        generate_site(
+            self.content_root,
+            self.output_dir,
+            site_url="https://pages.example",
+            site_baseurl="/project",
+        )
+
+        config_text = (self.output_dir / "_config.yml").read_text(encoding="utf-8")
+        layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
+
+        self.assertIn('url: "https://pages.example"', config_text)
+        self.assertIn('baseurl: "/project"', config_text)
+        self.assertNotIn("configured.example", config_text)
+        self.assertIn("| absolute_url }}", layout_html)
 
     def test_generate_site_refuses_to_overwrite_unmarked_directory(self) -> None:
         self.output_dir.mkdir()
@@ -729,7 +776,13 @@ class CliTests(unittest.TestCase):
         )
         self.assertIn("dev_reload_token", build_site.call_args.kwargs)
         rebuild_site_from_staging.assert_called_once_with(
-            Path("docs"), Path(".mkpages"), None, parser, dev_reload_token=mock.ANY
+            Path("docs"),
+            Path(".mkpages"),
+            None,
+            parser,
+            dev_reload_token=mock.ANY,
+            site_url=None,
+            site_baseurl=None,
         )
         self.assertEqual(start_jekyll_serve.call_count, 2)
         start_jekyll_serve.assert_any_call(

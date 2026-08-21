@@ -31,13 +31,17 @@ jobs:
           python-version: "3.11"
 
       - name: Set up Pages
+        id: pages
         uses: actions/configure-pages@v5
 
       - name: Install mkpages
         run: python -m pip install --upgrade pip && python -m pip install .
 
       - name: Generate mkpages source tree
-        run: mkpages build docs/
+        run: >-
+          mkpages build docs/
+          --url "${{ steps.pages.outputs.origin }}"
+          --baseurl "${{ steps.pages.outputs.base_path }}"
 
       - name: Build Jekyll site
         uses: actions/jekyll-build-pages@v1

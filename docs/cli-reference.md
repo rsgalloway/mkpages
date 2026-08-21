@@ -3,10 +3,10 @@
 ## Synopsis
 
 ```bash
-mkpages build [PATH] [--output .mkpages] [--theme NAME_OR_PATH]
+mkpages build [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--url URL] [--baseurl PATH]
 mkpages serve [--output .mkpages] [--host 127.0.0.1] [--port 4000]
-mkpages preview [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--host 127.0.0.1] [--port 4000]
-mkpages [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--host 127.0.0.1] [--port 4000]
+mkpages preview [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--url URL] [--baseurl PATH] [--host 127.0.0.1] [--port 4000]
+mkpages [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--url URL] [--baseurl PATH] [--host 127.0.0.1] [--port 4000]
 ```
 
 ## Arguments
@@ -46,6 +46,16 @@ Bundled themes:
 - `pulsar`
 - `retro`
 
+### `--url` and `--baseurl`
+
+Override the matching values in `mkpages.yml` for one build. `--url` must be
+an `http://` or `https://` origin. `--baseurl` is an optional deployment
+subpath such as `/project`.
+
+These options are useful in CI when the deployment platform supplies the
+canonical URL at build time. See [GitHub Pages](github-pages.md) for an
+example using `actions/configure-pages`.
+
 ### `mkpages.yml`
 
 The optional `mkpages.yml` file at the content root can set site-wide values
@@ -53,6 +63,8 @@ such as:
 
 - `title`
 - `description`
+- `url`
+- `baseurl`
 - `theme`
 - `favicon`
 - `navigation`
@@ -60,6 +72,10 @@ such as:
 `favicon` should be a relative path inside the content root, for example
 `assets/favicon.png`. `mkpages` copies that file through and adds a favicon
 link tag to the generated layout.
+
+Set `url` to your deployed site origin, such as `https://mkpages.dev`, when
+you want social card metadata to use absolute asset URLs for crawlers like X.
+Set `baseurl` when the site is hosted from a subpath.
 
 ### `serve`
 

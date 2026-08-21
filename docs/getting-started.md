@@ -48,6 +48,7 @@ Configure site metadata in `mkpages.yml` at the content root:
 ```yaml
 title: My Docs
 description: Notes and documentation for the project.
+url: https://example.com
 theme: dark
 favicon: assets/favicon.png
 ```
