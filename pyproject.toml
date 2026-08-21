@@ -57,7 +57,7 @@ zip-safe = false
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-mkpages = ["themes/*.css", "templates/*.j2"]
+mkpages = ["assets/*.svg", "themes/*.css", "templates/*.j2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

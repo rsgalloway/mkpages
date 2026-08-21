@@ -13,6 +13,7 @@ from unittest import mock
 
 from mkpages import __version__, cli
 from mkpages.generator import (
+    DEFAULT_FAVICON_PATH,
     DEV_RELOAD_TOKEN_PATH,
     OUTPUT_MARKER,
     SOCIAL_CARD_PATH,
@@ -243,13 +244,26 @@ class GenerationTests(unittest.TestCase):
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         self.assertIn("--bg: #19130d;", site_css)
 
-    def test_favicon_is_optional(self) -> None:
+    def test_favicon_defaults_to_bundled_mkpages_icon(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
 
         generate_site(self.content_root, self.output_dir)
 
         layout_html = (self.output_dir / "_layouts" / "default.html").read_text(encoding="utf-8")
-        self.assertNotIn('rel="icon"', layout_html)
+        bundled_favicon = (self.output_dir / Path(DEFAULT_FAVICON_PATH)).read_text(encoding="utf-8")
+        self.assertIn(
+            '<link rel="icon" href="{{ \'/assets/_mkpages/favicon.svg\' | relative_url }}">',
+            layout_html,
+        )
+        self.assertIn('aria-label="mkpages"', bundled_favicon)
+
+    def test_card_uses_bundled_favicon_without_local_art(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir)
+
+        social_card_svg = (self.output_dir / Path(SOCIAL_CARD_PATH)).read_text(encoding="utf-8")
+        self.assertIn("data:image/svg+xml;base64,", social_card_svg)
 
     def test_generate_site_can_embed_preview_reload_token(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")

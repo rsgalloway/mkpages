@@ -20,6 +20,8 @@ except ImportError:  # pragma: no cover
 OUTPUT_MARKER = ".mkpages-output"
 DEV_RELOAD_TOKEN_PATH = PurePosixPath("assets/mkpages-preview-token.txt")
 SOCIAL_CARD_PATH = PurePosixPath("assets/_mkpages/social-card.svg")
+DEFAULT_FAVICON_PATH = PurePosixPath("assets/_mkpages/favicon.svg")
+DEFAULT_FAVICON_RESOURCE = "assets/favicon.svg"
 DEFAULT_THEME_RESOURCE = "themes/default.css"
 TEMPLATE_DIR = "templates"
 CONFIG_FILE_NAME = "mkpages.yml"
@@ -337,6 +339,7 @@ def write_site_files(
     write_theme(output_dir, theme_path)
     write_dev_reload_token(output_dir, dev_reload_token)
     write_social_card(output_dir, resolved_card)
+    write_default_favicon(output_dir, favicon)
 
 
 def write_config(output_dir: Path, site_title: str, site_description: str) -> None:
@@ -347,6 +350,16 @@ def write_config(output_dir: Path, site_title: str, site_description: str) -> No
         site_description=json.dumps(site_description),
     )
     (output_dir / "_config.yml").write_text(config, encoding="utf-8")
+
+
+def write_default_favicon(output_dir: Path, favicon: PurePosixPath | None) -> None:
+    """Install mkpages' favicon when the project did not configure one."""
+    if favicon is not None:
+        return
+    destination = output_dir / Path(DEFAULT_FAVICON_PATH)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    resource = files("mkpages").joinpath(DEFAULT_FAVICON_RESOURCE)
+    destination.write_bytes(resource.read_bytes())
 
 
 def write_layouts(
@@ -487,11 +500,9 @@ def build_navigation_markup(navigation: tuple[NavigationItem, ...]) -> str:
 
 
 def build_favicon_markup(favicon: PurePosixPath | None) -> str:
-    """Render an optional favicon link tag for the shared layout."""
-    if favicon is None:
-        return ""
-
-    href = "{{ '/" + favicon.as_posix() + "' | relative_url }}"
+    """Render the project favicon or mkpages' bundled fallback."""
+    favicon_path = favicon or DEFAULT_FAVICON_PATH
+    href = "{{ '/" + favicon_path.as_posix() + "' | relative_url }}"
     return f'    <link rel="icon" href="{href}">'
 
 
@@ -611,7 +622,12 @@ def resolve_card_art(
         candidate = content_root / Path(relative_path)
         if candidate.exists() and candidate.is_file():
             return candidate
-    return None
+    return bundled_favicon_path()
+
+
+def bundled_favicon_path() -> Path:
+    """Return the installed mkpages favicon for generated-card artwork."""
+    return Path(files("mkpages").joinpath(DEFAULT_FAVICON_RESOURCE))
 
 
 def render_social_card_svg(
