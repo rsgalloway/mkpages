@@ -39,3 +39,20 @@ then:
 
 Relative Markdown links such as [CLI Reference](cli-reference.md) are rewritten
 so they continue to work after route generation.
+
+## Permalink overrides
+
+The rules above determine the default route that `mkpages` generates. `mkpages`
+preserves YAML front matter, so Jekyll can override that route with a
+`permalink` value.
+
+```yaml
+---
+permalink: /blog/my-post/
+---
+```
+
+For example, `blog/my-post.md` normally uses `/blog/my-post/`, but a
+`permalink` can publish it at a different path.
+
+More front matter information is available in [Front Matter](front-matter.md).

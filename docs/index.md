@@ -28,6 +28,7 @@ GitHub Pages without forcing the repository into a Jekyll-first layout.
 - [CLI Reference](cli-reference.md)
 - [Routing Rules](routing.md)
 - [Theming](theming.md)
+- [Front Matter](front-matter.md)
 - [GitHub Pages](github-pages.md)
 
 ## Dogfooding
