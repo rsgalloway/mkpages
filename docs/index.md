@@ -25,7 +25,7 @@ GitHub Pages without forcing the repository into a Jekyll-first layout.
 ## Start here
 
 - [Getting Started](getting-started.md)
-- [CLI Reference](cli-reference.md)
+- [CLI Reference](cli/index.md)
 - [Routing Rules](routing.md)
 - [Theming](theming.md)
 - [Front Matter](front-matter.md)

@@ -37,7 +37,7 @@ then:
 
 ## Link rewriting
 
-Relative Markdown links such as [CLI Reference](cli-reference.md) are rewritten
+Relative Markdown links such as [CLI Reference](cli/index.md) are rewritten
 so they continue to work after route generation.
 
 ## Permalink overrides
