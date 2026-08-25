@@ -694,7 +694,7 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(ctx.exception.code, 2)
 
-    def test_run_export_uses_output_extension_for_pdf(self) -> None:
+    def test_run_export_uses_inferred_format_for_pdf(self) -> None:
         parser = cli.build_export_parser()
         with tempfile.TemporaryDirectory(prefix="mkpages-export-") as tempdir:
             content_root = Path(tempdir) / "docs"
@@ -715,6 +715,8 @@ class CliTests(unittest.TestCase):
                 "/usr/bin/pandoc",
                 str(content_root / "index.md"),
                 str(content_root / "guide.md"),
+                "--to",
+                "pdf",
                 "-o",
                 str(output_path),
             ],
@@ -741,7 +743,17 @@ class CliTests(unittest.TestCase):
                     status = cli.run_export(args, parser)
 
         self.assertEqual(status, 0)
-        self.assertEqual(run.call_args.args[0][-1], str(output_path))
+        self.assertEqual(
+            run.call_args.args[0],
+            [
+                "/usr/bin/pandoc",
+                str(content_root / "index.md"),
+                "--to",
+                "docx",
+                "-o",
+                str(output_path),
+            ],
+        )
 
     def test_run_export_creates_zip_from_rendered_site(self) -> None:
         parser = cli.build_export_parser()
@@ -796,6 +808,7 @@ class CliTests(unittest.TestCase):
     def test_root_help_lists_subcommands(self) -> None:
         help_text = cli.build_root_parser().format_help()
 
+        self.assertIn("Generate, preview, and export artifacts", help_text)
         self.assertIn("commands:", help_text)
         self.assertIn("build     Generate a Jekyll source tree.", help_text)
         self.assertIn("serve     Serve an existing generated site.", help_text)

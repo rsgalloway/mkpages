@@ -1,7 +1,7 @@
 # `mkpages export`
 
 ```bash
-mkpages export [PATH] --output OUTPUT_FILE [--format {pdf,docx,zip}]
+mkpages export [PATH] --output OUTPUT_FILE [--format {docx,pdf,zip}]
 ```
 
 Create a portable artifact from a Markdown folder tree. `PATH` defaults to the

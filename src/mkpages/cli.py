@@ -197,7 +197,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     """Create the top-level subcommand parser."""
     parser = argparse.ArgumentParser(
         prog="mkpages",
-        description="Generate and preview Jekyll source trees from Markdown folder trees.",
+        description="Generate, preview, and export artifacts from Markdown folder trees.",
         epilog=(
             "commands:\n"
             "  build     Generate a Jekyll source tree.\n"
@@ -564,7 +564,7 @@ def export_combined_document(
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    completed = run_pandoc_export(pandoc_bin, input_paths, output_path)
+    completed = run_pandoc_export(pandoc_bin, input_paths, output_path, export_format)
     if completed.returncode != 0:
         details = (completed.stderr or completed.stdout).strip()
         if details:
@@ -576,11 +576,18 @@ def export_combined_document(
 
 
 def run_pandoc_export(
-    pandoc_bin: str, input_paths: list[Path], output_path: Path
+    pandoc_bin: str, input_paths: list[Path], output_path: Path, export_format: str
 ) -> subprocess.CompletedProcess[str]:
     """Invoke Pandoc for one combined document export."""
     return subprocess.run(
-        [pandoc_bin, *(str(path) for path in input_paths), "-o", str(output_path)],
+        [
+            pandoc_bin,
+            *(str(path) for path in input_paths),
+            "--to",
+            export_format,
+            "-o",
+            str(output_path),
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

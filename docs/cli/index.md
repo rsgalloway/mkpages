@@ -4,7 +4,7 @@
 
 ```bash
 mkpages build [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--url URL] [--baseurl PATH]
-mkpages export [PATH] --output OUTPUT_FILE [--format {pdf,docx,zip}]
+mkpages export [PATH] --output OUTPUT_FILE [--format {docx,pdf,zip}]
 mkpages serve [--output .mkpages] [--host 127.0.0.1] [--port 4000]
 mkpages preview [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--url URL] [--baseurl PATH] [--host 127.0.0.1] [--port 4000]
 mkpages [PATH] [--output .mkpages] [--theme NAME_OR_PATH] [--url URL] [--baseurl PATH] [--host 127.0.0.1] [--port 4000]
