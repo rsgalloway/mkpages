@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Iterable
@@ -255,6 +256,48 @@ def find_markdown_files(content_root: Path) -> list[PurePosixPath]:
     return results
 
 
+def discover_export_documents(content_root: Path) -> list[Path]:
+    """Return markdown source files in the deterministic combined-export order."""
+    markdown_files = find_markdown_files(content_root)
+    return [content_root / Path(path) for path in order_markdown_files(markdown_files)]
+
+
+def order_markdown_files(markdown_files: Iterable[PurePosixPath]) -> list[PurePosixPath]:
+    """Order markdown files for combined document export.
+
+    Within each directory:
+    - index.md first
+    - remaining markdown files alphabetically
+    - subdirectories alphabetically and recursively
+    """
+    children_by_dir: dict[PurePosixPath, list[PurePosixPath]] = defaultdict(list)
+    subdirs_by_dir: dict[PurePosixPath, set[PurePosixPath]] = defaultdict(set)
+
+    normalized_paths = sorted({PurePosixPath(path) for path in markdown_files})
+    for path in normalized_paths:
+        parent = path.parent
+        children_by_dir[parent].append(path)
+
+        current = parent
+        while str(current) not in {"", "."}:
+            subdirs_by_dir[current.parent].add(current)
+            current = current.parent
+
+    ordered: list[PurePosixPath] = []
+
+    def visit(directory: PurePosixPath) -> None:
+        files = children_by_dir.get(directory, [])
+        index_path = next((path for path in files if path.name == "index.md"), None)
+        if index_path is not None:
+            ordered.append(index_path)
+        ordered.extend(path for path in files if path != index_path)
+        for subdir in sorted(subdirs_by_dir.get(directory, ())):
+            visit(subdir)
+
+    visit(PurePosixPath("."))
+    return ordered
+
+
 def build_page_map(markdown_files: Iterable[PurePosixPath]) -> dict[PurePosixPath, Page]:
     """Map source markdown files to generated routes and output paths."""
     source_paths = set(markdown_files)
@@ -361,7 +404,7 @@ def write_site_files(
     write_layouts(output_dir, navigation, favicon, dev_reload_token, rendered_card, site_url)
     write_theme(output_dir, theme_path)
     write_dev_reload_token(output_dir, dev_reload_token)
-    write_default_favicon(output_dir, favicon)
+    write_mkpages_favicon(output_dir)
     return (card_warning,) if card_warning else ()
 
 
@@ -383,10 +426,8 @@ def write_config(
     (output_dir / "_config.yml").write_text(config, encoding="utf-8")
 
 
-def write_default_favicon(output_dir: Path, favicon: PurePosixPath | None) -> None:
-    """Install mkpages' favicon when the project did not configure one."""
-    if favicon is not None:
-        return
+def write_mkpages_favicon(output_dir: Path) -> None:
+    """Install the bundled mkpages mark for the fallback favicon and footer."""
     destination = output_dir / Path(DEFAULT_FAVICON_PATH)
     destination.parent.mkdir(parents=True, exist_ok=True)
     resource = files("mkpages").joinpath(DEFAULT_FAVICON_RESOURCE)

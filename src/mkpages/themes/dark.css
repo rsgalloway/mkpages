@@ -80,6 +80,20 @@ a:hover {
   border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.94rem;
+  justify-content: center;
+}
+
+.mkpages-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
+  line-height: 1;
+}
+
+.mkpages-footer-icon {
+  display: block;
+  width: 1.35em;
+  height: 1.35em;
 }
 
 .site-brand {

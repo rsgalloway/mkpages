@@ -75,4 +75,4 @@ theme name or a CSS file path explicitly:
 mkpages build docs/ --theme ./themes/my-site.css
 ```
 
-See [CLI Reference](cli-reference.md) for the full option summary.
+See [CLI Reference](cli/index.md) for the full option summary.

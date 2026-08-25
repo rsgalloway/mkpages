@@ -8,7 +8,7 @@ navigation:
   - label: Getting Started
     href: /getting-started/
   - label: CLI
-    href: /cli-reference/
+    href: /cli/
   - label: Routing
     href: /routing/
   - label: Theming
