@@ -404,7 +404,7 @@ def write_site_files(
     write_layouts(output_dir, navigation, favicon, dev_reload_token, rendered_card, site_url)
     write_theme(output_dir, theme_path)
     write_dev_reload_token(output_dir, dev_reload_token)
-    write_default_favicon(output_dir, favicon)
+    write_mkpages_favicon(output_dir)
     return (card_warning,) if card_warning else ()
 
 
@@ -426,10 +426,8 @@ def write_config(
     (output_dir / "_config.yml").write_text(config, encoding="utf-8")
 
 
-def write_default_favicon(output_dir: Path, favicon: PurePosixPath | None) -> None:
-    """Install mkpages' favicon when the project did not configure one."""
-    if favicon is not None:
-        return
+def write_mkpages_favicon(output_dir: Path) -> None:
+    """Install the bundled mkpages mark for the fallback favicon and footer."""
     destination = output_dir / Path(DEFAULT_FAVICON_PATH)
     destination.parent.mkdir(parents=True, exist_ok=True)
     resource = files("mkpages").joinpath(DEFAULT_FAVICON_RESOURCE)

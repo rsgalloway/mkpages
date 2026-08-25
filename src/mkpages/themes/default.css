@@ -71,6 +71,19 @@ a:hover {
   display: none;
 }
 
+.mkpages-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
+  line-height: 1;
+}
+
+.mkpages-footer-icon {
+  display: block;
+  width: 1.35em;
+  height: 1.35em;
+}
+
 .site-brand {
   color: var(--text);
   font-size: 1rem;

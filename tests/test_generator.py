@@ -184,6 +184,7 @@ class GenerationTests(unittest.TestCase):
         self.assertTrue((self.output_dir / "guide" / "index.md").exists())
         self.assertTrue((self.output_dir / "images" / "logo.png").exists())
         self.assertTrue((self.output_dir / "images" / "favicon.png").exists())
+        self.assertTrue((self.output_dir / Path(DEFAULT_FAVICON_PATH)).exists())
         self.assertTrue((self.output_dir / "_includes" / "site_footer.html").exists())
         social_card_png = self.output_dir / Path(SOCIAL_CARD_PATH)
         self.assertTrue((self.output_dir / Path(SOCIAL_CARD_SVG_PATH)).exists())
@@ -195,6 +196,9 @@ class GenerationTests(unittest.TestCase):
         theme_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         config_text = (self.output_dir / "_config.yml").read_text(encoding="utf-8")
         header_html = (self.output_dir / "_includes" / "site_header.html").read_text(
+            encoding="utf-8"
+        )
+        footer_html = (self.output_dir / "_includes" / "site_footer.html").read_text(
             encoding="utf-8"
         )
 
@@ -219,6 +223,12 @@ class GenerationTests(unittest.TestCase):
         self.assertIn(
             '<link rel="icon" href="{{ \'/images/favicon.png\' | relative_url }}">', layout_html
         )
+        self.assertIn('class="mkpages-footer-brand"', footer_html)
+        self.assertIn('class="mkpages-footer-icon"', footer_html)
+        self.assertIn("/assets/mkpages/favicon.svg", footer_html)
+        self.assertIn("<span>mkpages</span></a>", footer_html)
+        self.assertNotIn("<code>mkpages</code>", footer_html)
+        self.assertNotIn("Built with", footer_html)
         self.assertIn('property="og:title" content="Test Docs"', layout_html)
         self.assertIn('name="twitter:card" content="summary_large_image"', layout_html)
         if social_card_png.exists():
@@ -769,7 +779,8 @@ class CliTests(unittest.TestCase):
             generate.assert_called_once()
             with zipfile.ZipFile(output_path) as archive:
                 self.assertEqual(archive.namelist(), ["assets/site.css", "index.html"])
-                self.assertEqual(archive.read("index.html").decode("utf-8"), "<h1>Home</h1>\n")
+                index_html = archive.read("index.html").decode("utf-8").replace("\r\n", "\n")
+                self.assertEqual(index_html, "<h1>Home</h1>\n")
                 self.assertNotIn("index.md", archive.namelist())
 
     def test_root_parser_uses_package_version(self) -> None:
