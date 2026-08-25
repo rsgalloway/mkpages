@@ -670,12 +670,13 @@ def write_zip_archive(source_dir: Path, output_path: Path) -> None:
     """Write a deterministic ZIP archive from a rendered site tree."""
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(source_dir.rglob("*")):
-            if path.is_dir():
+            if path.is_dir() or path.is_symlink():
                 continue
             archive_info = zipfile.ZipInfo(path.relative_to(source_dir).as_posix())
             archive_info.compress_type = zipfile.ZIP_DEFLATED
             archive_info.date_time = (1980, 1, 1, 0, 0, 0)
-            archive_info.external_attr = 0o644 << 16
+            archive_info.create_system = 3
+            archive_info.external_attr = 0o100644 << 16
             archive.writestr(archive_info, path.read_bytes())
 
 

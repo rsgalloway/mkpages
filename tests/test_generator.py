@@ -795,6 +795,9 @@ class CliTests(unittest.TestCase):
                 assets_dir = rendered_output_dir / "assets"
                 assets_dir.mkdir()
                 (assets_dir / "site.css").write_text("body{}\n", encoding="utf-8")
+                (rendered_output_dir / "outside-link.txt").write_text(
+                    "outside content\n", encoding="utf-8"
+                )
 
             with mock.patch(
                 "mkpages.cli.generate_site_checked", side_effect=fake_generate_site_checked
@@ -802,7 +805,12 @@ class CliTests(unittest.TestCase):
                 with mock.patch(
                     "mkpages.cli.build_rendered_site", side_effect=fake_build_rendered_site
                 ):
-                    status = cli.run_export(args, parser)
+                    with mock.patch(
+                        "mkpages.cli.Path.is_symlink",
+                        autospec=True,
+                        side_effect=lambda path: path.name == "outside-link.txt",
+                    ):
+                        status = cli.run_export(args, parser)
             self.assertEqual(status, 0)
             generate.assert_called_once()
             with zipfile.ZipFile(output_path) as archive:
@@ -810,6 +818,10 @@ class CliTests(unittest.TestCase):
                 index_html = archive.read("index.html").decode("utf-8").replace("\r\n", "\n")
                 self.assertEqual(index_html, "<h1>Home</h1>\n")
                 self.assertNotIn("index.md", archive.namelist())
+                self.assertNotIn("outside-link.txt", archive.namelist())
+                index_info = archive.getinfo("index.html")
+                self.assertEqual(index_info.create_system, 3)
+                self.assertEqual(index_info.external_attr >> 16, 0o100644)
 
     def test_root_parser_uses_package_version(self) -> None:
         parser = cli.build_root_parser()
