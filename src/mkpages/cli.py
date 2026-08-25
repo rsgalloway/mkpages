@@ -564,7 +564,7 @@ def export_combined_document(
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    completed = run_pandoc_export(pandoc_bin, input_paths, output_path, export_format)
+    completed = run_pandoc_export(pandoc_bin, input_paths, content_root, output_path, export_format)
     if completed.returncode != 0:
         details = (completed.stderr or completed.stdout).strip()
         if details:
@@ -576,13 +576,19 @@ def export_combined_document(
 
 
 def run_pandoc_export(
-    pandoc_bin: str, input_paths: list[Path], output_path: Path, export_format: str
+    pandoc_bin: str,
+    input_paths: list[Path],
+    content_root: Path,
+    output_path: Path,
+    export_format: str,
 ) -> subprocess.CompletedProcess[str]:
-    """Invoke Pandoc for one combined document export."""
+    """Invoke Pandoc for one combined document export with local asset lookup."""
+    resource_path = build_pandoc_resource_path(content_root, input_paths)
     return subprocess.run(
         [
             pandoc_bin,
             *(str(path) for path in input_paths),
+            f"--resource-path={resource_path}",
             "--to",
             export_format,
             "-o",
@@ -593,6 +599,13 @@ def run_pandoc_export(
         text=True,
         check=False,
     )
+
+
+def build_pandoc_resource_path(content_root: Path, input_paths: list[Path]) -> str:
+    """Return Pandoc asset search roots for Markdown files in one export."""
+    search_roots = [content_root, *(path.parent for path in input_paths)]
+    unique_roots = dict.fromkeys(str(path.resolve()) for path in search_roots)
+    return os.pathsep.join(unique_roots)
 
 
 def export_rendered_site_zip(

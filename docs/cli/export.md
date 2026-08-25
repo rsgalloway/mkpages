@@ -38,6 +38,10 @@ behavior, which may require a separate PDF engine on the host. mkpages does not
 bundle an engine; if one is unavailable, it reports Pandoc's error so you can
 install or configure an appropriate backend.
 
+For PDF and DOCX, mkpages gives Pandoc the content root and each Markdown file
+directory as image search locations. This preserves local relative image links,
+including references to assets alongside or above the exported content tree.
+
 ## Importing a ZIP into Confluence Cloud
 
 The rendered-site ZIP can be used as a starting point for moving a documentation

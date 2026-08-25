@@ -715,6 +715,7 @@ class CliTests(unittest.TestCase):
                 "/usr/bin/pandoc",
                 str(content_root / "index.md"),
                 str(content_root / "guide.md"),
+                f"--resource-path={content_root.resolve()}",
                 "--to",
                 "pdf",
                 "-o",
@@ -748,11 +749,26 @@ class CliTests(unittest.TestCase):
             [
                 "/usr/bin/pandoc",
                 str(content_root / "index.md"),
+                f"--resource-path={content_root.resolve()}",
                 "--to",
                 "docx",
                 "-o",
                 str(output_path),
             ],
+        )
+
+    def test_build_pandoc_resource_path_includes_markdown_directories(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mkpages-export-") as tempdir:
+            content_root = Path(tempdir) / "docs"
+            nested_dir = content_root / "guides"
+            nested_dir.mkdir(parents=True)
+            input_paths = [content_root / "index.md", nested_dir / "install.md"]
+
+            resource_path = cli.build_pandoc_resource_path(content_root, input_paths)
+
+        self.assertEqual(
+            resource_path.split(os.pathsep),
+            [str(content_root.resolve()), str(nested_dir.resolve())],
         )
 
     def test_run_export_creates_zip_from_rendered_site(self) -> None:
