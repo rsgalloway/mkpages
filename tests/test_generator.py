@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path, PurePosixPath
 from unittest import mock
 
@@ -21,6 +22,7 @@ from mkpages.generator import (
     SOCIAL_CARD_SVG_PATH,
     MkpagesError,
     build_page_map,
+    discover_export_documents,
     generate_site,
     rewrite_local_links,
 )
@@ -75,6 +77,40 @@ class RouteMappingTests(unittest.TestCase):
         self.assertIn("[Examples](../examples/#demo)", rewritten)
         self.assertIn("![Logo](../../images/logo.png)", rewritten)
         self.assertIn("[External](https://example.com)", rewritten)
+
+    def test_discover_export_documents_uses_deterministic_directory_order(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mkpages-export-order-") as tempdir:
+            content_root = Path(tempdir)
+            (content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+            (content_root / "guide.md").write_text("# Guide\n", encoding="utf-8")
+            (content_root / "README.md").write_text("# Readme\n", encoding="utf-8")
+            alpha_dir = content_root / "alpha"
+            alpha_dir.mkdir()
+            (alpha_dir / "zeta.md").write_text("# Zeta\n", encoding="utf-8")
+            (alpha_dir / "index.md").write_text("# Alpha\n", encoding="utf-8")
+            beta_dir = content_root / "beta"
+            beta_dir.mkdir()
+            (beta_dir / "intro.md").write_text("# Intro\n", encoding="utf-8")
+            nested_dir = beta_dir / "nested"
+            nested_dir.mkdir()
+            (nested_dir / "index.md").write_text("# Nested\n", encoding="utf-8")
+            (nested_dir / "appendix.md").write_text("# Appendix\n", encoding="utf-8")
+
+            ordered = discover_export_documents(content_root)
+
+        self.assertEqual(
+            [path.relative_to(content_root).as_posix() for path in ordered],
+            [
+                "index.md",
+                "README.md",
+                "guide.md",
+                "alpha/index.md",
+                "alpha/zeta.md",
+                "beta/intro.md",
+                "beta/nested/index.md",
+                "beta/nested/appendix.md",
+            ],
+        )
 
 
 class GenerationTests(unittest.TestCase):
@@ -616,6 +652,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         run_preview.assert_called_once()
 
+    def test_main_dispatches_export_subcommand(self) -> None:
+        with mock.patch("mkpages.cli.run_export", return_value=0) as run_export:
+            status = cli.main(["export", "docs", "-o", "docs.pdf"])
+
+        self.assertEqual(status, 0)
+        run_export.assert_called_once()
+
     def test_main_treats_bare_path_as_preview(self) -> None:
         with mock.patch("mkpages.cli.run_preview", return_value=0) as run_preview:
             status = cli.main(["docs", "--theme", "dark"])
@@ -627,6 +670,108 @@ class CliTests(unittest.TestCase):
         status = cli.main([])
         self.assertEqual(status, 2)
 
+    def test_run_export_requires_pandoc_for_pdf(self) -> None:
+        parser = cli.build_export_parser()
+        with tempfile.TemporaryDirectory(prefix="mkpages-export-") as tempdir:
+            content_root = Path(tempdir) / "docs"
+            content_root.mkdir()
+            (content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+            args = parser.parse_args([str(content_root), "-o", str(Path(tempdir) / "docs.pdf")])
+
+            with mock.patch("mkpages.cli.shutil.which", return_value=None):
+                with self.assertRaises(SystemExit) as ctx:
+                    cli.run_export(args, parser)
+
+        self.assertEqual(ctx.exception.code, 2)
+
+    def test_run_export_uses_output_extension_for_pdf(self) -> None:
+        parser = cli.build_export_parser()
+        with tempfile.TemporaryDirectory(prefix="mkpages-export-") as tempdir:
+            content_root = Path(tempdir) / "docs"
+            content_root.mkdir()
+            (content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+            (content_root / "guide.md").write_text("# Guide\n", encoding="utf-8")
+            output_path = Path(tempdir) / "docs.pdf"
+            args = parser.parse_args([str(content_root), "-o", str(output_path)])
+
+            completed = subprocess.CompletedProcess(args=["pandoc"], returncode=0)
+            with mock.patch("mkpages.cli.shutil.which", return_value="/usr/bin/pandoc"):
+                with mock.patch("mkpages.cli.subprocess.run", return_value=completed) as run:
+                    status = cli.run_export(args, parser)
+
+        self.assertEqual(status, 0)
+        run.assert_called_once_with(
+            [
+                "/usr/bin/pandoc",
+                str(content_root / "index.md"),
+                str(content_root / "guide.md"),
+                "-o",
+                str(output_path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+    def test_run_export_honors_format_override(self) -> None:
+        parser = cli.build_export_parser()
+        with tempfile.TemporaryDirectory(prefix="mkpages-export-") as tempdir:
+            content_root = Path(tempdir) / "docs"
+            content_root.mkdir()
+            (content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+            output_path = Path(tempdir) / "artifact.bin"
+            args = parser.parse_args(
+                [str(content_root), "-o", str(output_path), "--format", "docx"]
+            )
+
+            completed = subprocess.CompletedProcess(args=["pandoc"], returncode=0)
+            with mock.patch("mkpages.cli.shutil.which", return_value="/usr/bin/pandoc"):
+                with mock.patch("mkpages.cli.subprocess.run", return_value=completed) as run:
+                    status = cli.run_export(args, parser)
+
+        self.assertEqual(status, 0)
+        self.assertEqual(run.call_args.args[0][-1], str(output_path))
+
+    def test_run_export_creates_zip_from_rendered_site(self) -> None:
+        parser = cli.build_export_parser()
+        with tempfile.TemporaryDirectory(prefix="mkpages-export-") as tempdir:
+            content_root = Path(tempdir) / "docs"
+            content_root.mkdir()
+            (content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+            output_path = Path(tempdir) / "site.zip"
+            args = parser.parse_args([str(content_root), "-o", str(output_path)])
+
+            result = mock.Mock(warnings=(), pages_written=1, assets_copied=0)
+
+            def fake_generate_site_checked(**kwargs):
+                output_dir = kwargs["output_dir"]
+                output_dir.mkdir(parents=True, exist_ok=True)
+                (output_dir / OUTPUT_MARKER).write_text("generated by mkpages\n", encoding="utf-8")
+                return result
+
+            def fake_build_rendered_site(source_output_dir, rendered_output_dir, parser):
+                self.assertTrue((source_output_dir / OUTPUT_MARKER).exists())
+                rendered_output_dir.mkdir(parents=True, exist_ok=True)
+                (rendered_output_dir / "index.html").write_text("<h1>Home</h1>\n", encoding="utf-8")
+                assets_dir = rendered_output_dir / "assets"
+                assets_dir.mkdir()
+                (assets_dir / "site.css").write_text("body{}\n", encoding="utf-8")
+
+            with mock.patch(
+                "mkpages.cli.generate_site_checked", side_effect=fake_generate_site_checked
+            ) as generate:
+                with mock.patch(
+                    "mkpages.cli.build_rendered_site", side_effect=fake_build_rendered_site
+                ):
+                    status = cli.run_export(args, parser)
+            self.assertEqual(status, 0)
+            generate.assert_called_once()
+            with zipfile.ZipFile(output_path) as archive:
+                self.assertEqual(archive.namelist(), ["assets/site.css", "index.html"])
+                self.assertEqual(archive.read("index.html").decode("utf-8"), "<h1>Home</h1>\n")
+                self.assertNotIn("index.md", archive.namelist())
+
     def test_root_parser_uses_package_version(self) -> None:
         parser = cli.build_root_parser()
 
@@ -636,6 +781,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 0)
         version_action = next(action for action in parser._actions if action.dest == "version")
         self.assertEqual(version_action.version, f"mkpages {__version__}")
+
+    def test_root_help_lists_subcommands(self) -> None:
+        help_text = cli.build_root_parser().format_help()
+
+        self.assertIn("commands:", help_text)
+        self.assertIn("build     Generate a Jekyll source tree.", help_text)
+        self.assertIn("serve     Serve an existing generated site.", help_text)
+        self.assertIn("preview   Build and serve a Markdown tree", help_text)
+        self.assertIn("export    Export a Markdown tree as PDF, DOCX", help_text)
 
     def test_run_serve_requires_jekyll(self) -> None:
         parser = cli.build_serve_parser()

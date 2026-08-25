@@ -12,6 +12,7 @@ import tempfile
 import threading
 import time
 import webbrowser
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -20,6 +21,7 @@ from mkpages.generator import (
     CONFIG_FILE_NAME,
     OUTPUT_MARKER,
     MkpagesError,
+    discover_export_documents,
     generate_site,
     is_excluded,
 )
@@ -27,6 +29,7 @@ from mkpages.generator import (
 DEFAULT_OUTPUT_DIR = Path(".mkpages")
 WATCH_POLL_INTERVAL = 0.5
 JEKYLL_RUNTIME_NAMES = ("_site", ".jekyll-cache", ".jekyll-metadata", ".sass-cache")
+EXPORT_FORMATS = ("docx", "pdf", "zip")
 NOISY_JEKYLL_PATTERNS = (
     "Configuration file:",
     "Source:",
@@ -169,11 +172,40 @@ def build_preview_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_export_parser() -> argparse.ArgumentParser:
+    """Create the export subcommand parser."""
+    parser = argparse.ArgumentParser(
+        prog="mkpages export",
+        description="Export a Markdown folder tree as PDF, DOCX, or a rendered site ZIP.",
+    )
+    add_source_argument(parser)
+    parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Output file path. The format is inferred from the extension unless --format is set.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=EXPORT_FORMATS,
+        help="Explicit export format override.",
+    )
+    return parser
+
+
 def build_root_parser() -> argparse.ArgumentParser:
     """Create the top-level subcommand parser."""
     parser = argparse.ArgumentParser(
         prog="mkpages",
         description="Generate and preview Jekyll source trees from Markdown folder trees.",
+        epilog=(
+            "commands:\n"
+            "  build     Generate a Jekyll source tree.\n"
+            "  serve     Serve an existing generated site.\n"
+            "  preview   Build and serve a Markdown tree (the default for a bare path).\n"
+            "  export    Export a Markdown tree as PDF, DOCX, or a rendered site ZIP."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     add_version_argument(parser)
     parser.add_argument(
@@ -343,6 +375,28 @@ def run_preview(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
             stop_jekyll_process(process)
 
 
+def run_export(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Export the Markdown tree as PDF, DOCX, or rendered-site ZIP."""
+    content_root = Path(args.path).expanduser()
+    if not content_root.exists():
+        parser.error(f"content root does not exist: {content_root}")
+    if not content_root.is_dir():
+        parser.error(f"content root is not a directory: {content_root}")
+
+    output_path = Path(args.output).expanduser()
+    if output_path.exists() and output_path.is_dir():
+        parser.error(f"output path is a directory: {output_path}")
+
+    export_format = resolve_export_format(output_path, args.format, parser)
+    if export_format in {"pdf", "docx"}:
+        export_combined_document(content_root, output_path, export_format, parser)
+    else:
+        export_rendered_site_zip(content_root, output_path, parser)
+
+    print_status(f"Exported {content_root} to {output_path}", kind="success")
+    return 0
+
+
 def open_browser(host: str, port: int) -> None:
     """Open the preview URL in the user's default browser."""
     browser_host = "localhost" if host in {"0.0.0.0", "::"} else host
@@ -365,6 +419,25 @@ def resolve_common_paths(
     output_dir = Path(args.output).expanduser()
     theme_path = Path(args.theme).expanduser() if args.theme else None
     return content_root, output_dir, theme_path
+
+
+def resolve_export_format(
+    output_path: Path, explicit_format: str | None, parser: argparse.ArgumentParser
+) -> str:
+    """Resolve the export format from an explicit override or output extension."""
+    if explicit_format:
+        return explicit_format
+
+    suffix = output_path.suffix.lower().lstrip(".")
+    if suffix in EXPORT_FORMATS:
+        return suffix
+
+    choices = ", ".join(EXPORT_FORMATS)
+    parser.error(
+        f"could not infer export format from output path: {output_path}. "
+        f"Use a .pdf, .docx, or .zip extension, or pass --format ({choices})."
+    )
+    return ""
 
 
 def print_status(
@@ -467,6 +540,123 @@ def build_site(
         parser.exit(status=2, message=f"mkpages: error: {exc}\n")
     except Exception as exc:  # pragma: no cover
         parser.exit(status=2, message=f"mkpages: error: unexpected build failure: {exc}\n")
+
+
+def export_combined_document(
+    content_root: Path,
+    output_path: Path,
+    export_format: str,
+    parser: argparse.ArgumentParser,
+) -> None:
+    """Export the Markdown tree as one combined PDF or DOCX via Pandoc."""
+    pandoc_bin = shutil.which("pandoc")
+    if pandoc_bin is None:
+        parser.exit(
+            status=2,
+            message="mkpages: error: PDF and DOCX exports require Pandoc. Install Pandoc and retry.\n",
+        )
+
+    input_paths = discover_export_documents(content_root)
+    if not input_paths:
+        parser.exit(
+            status=2,
+            message=f"mkpages: error: no Markdown files found under {content_root}\n",
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    completed = run_pandoc_export(pandoc_bin, input_paths, output_path)
+    if completed.returncode != 0:
+        details = (completed.stderr or completed.stdout).strip()
+        if details:
+            parser.exit(
+                status=2,
+                message=f"mkpages: error: pandoc {export_format} export failed:\n{details}\n",
+            )
+        parser.exit(status=2, message=f"mkpages: error: pandoc {export_format} export failed\n")
+
+
+def run_pandoc_export(
+    pandoc_bin: str, input_paths: list[Path], output_path: Path
+) -> subprocess.CompletedProcess[str]:
+    """Invoke Pandoc for one combined document export."""
+    return subprocess.run(
+        [pandoc_bin, *(str(path) for path in input_paths), "-o", str(output_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def export_rendered_site_zip(
+    content_root: Path,
+    output_path: Path,
+    parser: argparse.ArgumentParser,
+) -> None:
+    """Export the rendered static site as a ZIP archive."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="mkpages-export-") as tempdir:
+        temp_root = Path(tempdir)
+        source_output_dir = temp_root / ".mkpages"
+        rendered_output_dir = temp_root / "_site"
+
+        result = generate_site_checked(
+            content_root=content_root,
+            output_dir=source_output_dir,
+            theme_path=None,
+            preserve_output_names=("_site",),
+        )
+        print_generation_warnings(result)
+        build_rendered_site(source_output_dir, rendered_output_dir, parser)
+        write_zip_archive(rendered_output_dir, output_path)
+
+
+def build_rendered_site(
+    source_output_dir: Path, rendered_output_dir: Path, parser: argparse.ArgumentParser
+) -> None:
+    """Run Jekyll build for a generated mkpages source tree."""
+    jekyll_bin = shutil.which("jekyll")
+    if jekyll_bin is None:
+        parser.exit(
+            status=2,
+            message=(
+                "mkpages: error: ZIP exports require the jekyll executable on PATH. "
+                "Install Jekyll and retry.\n"
+            ),
+        )
+
+    completed = subprocess.run(
+        [
+            jekyll_bin,
+            "build",
+            "--source",
+            str(source_output_dir),
+            "--destination",
+            str(rendered_output_dir),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        details = (completed.stderr or completed.stdout).strip()
+        if details:
+            parser.exit(status=2, message=f"mkpages: error: jekyll build failed:\n{details}\n")
+        parser.exit(status=2, message="mkpages: error: jekyll build failed\n")
+
+
+def write_zip_archive(source_dir: Path, output_path: Path) -> None:
+    """Write a deterministic ZIP archive from a rendered site tree."""
+    with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(source_dir.rglob("*")):
+            if path.is_dir():
+                continue
+            archive_info = zipfile.ZipInfo(path.relative_to(source_dir).as_posix())
+            archive_info.compress_type = zipfile.ZIP_DEFLATED
+            archive_info.date_time = (1980, 1, 1, 0, 0, 0)
+            archive_info.external_attr = 0o644 << 16
+            archive.writestr(archive_info, path.read_bytes())
 
 
 def generate_site_checked(
@@ -765,6 +955,10 @@ def main(argv: list[str] | None = None) -> int:
         parser = build_preview_parser()
         args = parser.parse_args(args_list[1:])
         return run_preview(args, parser)
+    if root_args.command == "export":
+        parser = build_export_parser()
+        args = parser.parse_args(args_list[1:])
+        return run_export(args, parser)
     if root_args.command:
         parser = build_preview_parser()
         args = parser.parse_args(args_list)
@@ -772,7 +966,7 @@ def main(argv: list[str] | None = None) -> int:
 
     root_parser.print_usage(sys.stderr)
     print(
-        "mkpages: error: a subcommand is required (build, serve, or preview)",
+        "mkpages: error: a subcommand is required (build, serve, preview, or export)",
         file=sys.stderr,
     )
     return 2

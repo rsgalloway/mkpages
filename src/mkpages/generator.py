@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Iterable
@@ -253,6 +254,48 @@ def find_markdown_files(content_root: Path) -> list[PurePosixPath]:
             continue
         results.append(PurePosixPath(rel_path.as_posix()))
     return results
+
+
+def discover_export_documents(content_root: Path) -> list[Path]:
+    """Return markdown source files in the deterministic combined-export order."""
+    markdown_files = find_markdown_files(content_root)
+    return [content_root / Path(path) for path in order_markdown_files(markdown_files)]
+
+
+def order_markdown_files(markdown_files: Iterable[PurePosixPath]) -> list[PurePosixPath]:
+    """Order markdown files for combined document export.
+
+    Within each directory:
+    - index.md first
+    - remaining markdown files alphabetically
+    - subdirectories alphabetically and recursively
+    """
+    children_by_dir: dict[PurePosixPath, list[PurePosixPath]] = defaultdict(list)
+    subdirs_by_dir: dict[PurePosixPath, set[PurePosixPath]] = defaultdict(set)
+
+    normalized_paths = sorted({PurePosixPath(path) for path in markdown_files})
+    for path in normalized_paths:
+        parent = path.parent
+        children_by_dir[parent].append(path)
+
+        current = parent
+        while str(current) not in {"", "."}:
+            subdirs_by_dir[current.parent].add(current)
+            current = current.parent
+
+    ordered: list[PurePosixPath] = []
+
+    def visit(directory: PurePosixPath) -> None:
+        files = children_by_dir.get(directory, [])
+        index_path = next((path for path in files if path.name == "index.md"), None)
+        if index_path is not None:
+            ordered.append(index_path)
+        ordered.extend(path for path in files if path != index_path)
+        for subdir in sorted(subdirs_by_dir.get(directory, ())):
+            visit(subdir)
+
+    visit(PurePosixPath("."))
+    return ordered
 
 
 def build_page_map(markdown_files: Iterable[PurePosixPath]) -> dict[PurePosixPath, Page]:
