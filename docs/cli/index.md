@@ -69,7 +69,7 @@ an `http://` or `https://` origin. `--baseurl` is an optional deployment
 subpath such as `/project`.
 
 These options are useful in CI when the deployment platform supplies the
-canonical URL at build time. See [GitHub Pages](github-pages.md) for an
+canonical URL at build time. See [GitHub Pages](../github-pages.md) for an
 example using `actions/configure-pages`.
 
 ### `mkpages.yml`
