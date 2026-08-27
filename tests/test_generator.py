@@ -266,6 +266,10 @@ class GenerationTests(unittest.TestCase):
         self.assertIn('<canvas id="theme-canvas" aria-hidden="true"></canvas>', layout_html)
         self.assertIn("function startMatrixRain(canvas)", layout_html)
         self.assertIn(
+            "const requestFrame = window.requestAnimationFrame?.bind(window);", layout_html
+        )
+        self.assertIn("if (!requestFrame || !cancelFrame)", layout_html)
+        self.assertIn(
             'getComputedStyle(document.body).getPropertyValue("--matrix-rain").trim() === "on"',
             layout_html,
         )
@@ -596,6 +600,25 @@ class GenerationTests(unittest.TestCase):
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         self.assertIn("--bg: #161d27;", site_css)
         self.assertIn("body::before", site_css)
+
+    def test_all_bundled_themes_style_card_panels(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        for theme_name in (
+            "default",
+            "dark",
+            "developer",
+            "gridline",
+            "matrix",
+            "minimal",
+            "pulsar",
+            "retro",
+        ):
+            generate_site(self.content_root, self.output_dir, explicit_theme=theme_name)
+            site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
+            self.assertIn(".card-panel", site_css, theme_name)
+            self.assertIn(".card-panel-header", site_css, theme_name)
+            self.assertIn(".card-panel-title", site_css, theme_name)
 
     def test_invalid_theme_name_mentions_bundled_choices(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")

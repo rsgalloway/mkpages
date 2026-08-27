@@ -11,6 +11,13 @@
 [[ dev_reload_markup ]]
     <script>
       function startMatrixRain(canvas) {
+        const requestFrame = window.requestAnimationFrame?.bind(window);
+        const cancelFrame = window.cancelAnimationFrame?.bind(window);
+        if (!requestFrame || !cancelFrame) {
+          console.warn("mkpages: Matrix rain is unavailable because animation frames are not supported.");
+          return;
+        }
+
         const context = canvas.getContext("2d");
         if (!context) {
           console.warn("mkpages: Matrix rain is unavailable because Canvas 2D is not supported.");
@@ -45,7 +52,7 @@
             return;
           }
           if (timestamp - lastFrame < 48) {
-            animationFrameId = window.requestAnimationFrame(draw);
+            animationFrameId = requestFrame(draw);
             return;
           }
           lastFrame = timestamp;
@@ -71,23 +78,23 @@
             }
           }
 
-          animationFrameId = window.requestAnimationFrame(draw);
+          animationFrameId = requestFrame(draw);
         };
 
         resize();
         context.fillStyle = "rgba(1, 4, 2, 1)";
         context.fillRect(0, 0, canvas.width, canvas.height);
-        animationFrameId = window.requestAnimationFrame(draw);
+        animationFrameId = requestFrame(draw);
 
         window.addEventListener("resize", resize, { passive: true });
         const handleMotionChange = () => {
           if (prefersReducedMotion()) {
-            window.cancelAnimationFrame(animationFrameId);
+            cancelFrame(animationFrameId);
             context.clearRect(0, 0, canvas.width, canvas.height);
           } else {
             resize();
             lastFrame = 0;
-            animationFrameId = window.requestAnimationFrame(draw);
+            animationFrameId = requestFrame(draw);
           }
         };
         if (motionQuery?.addEventListener) {
