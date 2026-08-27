@@ -327,6 +327,14 @@ th { background: var(--panel-strong); color: var(--text); font-size: 0.78rem; le
   border-bottom: 1px solid var(--border);
 }
 .gridline-theme-list li:nth-last-child(-n + 2) { border-bottom: 0; }
+.gridline-theme-list img {
+  display: block;
+  width: min(200px, 100%);
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
 .gridline-theme-list code {
   padding: 0;
   background: transparent;
