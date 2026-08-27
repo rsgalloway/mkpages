@@ -40,6 +40,16 @@ For example, this directive lists featured pages from the `blog` folder:
 :::cards source=blog featured=true
 ```
 
+Cards can also be authored directly from a Markdown list. Add `panel=true`
+with a quoted `title` to group them in a labeled outer panel:
+
+```text
+:::cards columns=3 panel=true title="What it does"
+- **Discovers Markdown**: Finds files under the content root.
+- **Copies assets**: Carries non-Markdown files into the generated site.
+:::
+```
+
 ## Fields used by Jekyll
 
 `permalink` overrides the default route generated from a Markdown filename:

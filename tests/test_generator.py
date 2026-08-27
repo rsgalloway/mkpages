@@ -23,6 +23,7 @@ from mkpages.generator import (
     MkpagesError,
     build_page_map,
     discover_export_documents,
+    expand_directives,
     generate_site,
     rewrite_local_links,
 )
@@ -77,6 +78,21 @@ class RouteMappingTests(unittest.TestCase):
         self.assertIn("[Examples](../examples/#demo)", rewritten)
         self.assertIn("![Logo](../../images/logo.png)", rewritten)
         self.assertIn("[External](https://example.com)", rewritten)
+
+    def test_cards_directive_renders_static_cards_inside_a_panel(self) -> None:
+        rendered = expand_directives(
+            ':::cards columns=2 panel=true title="What it does"\n'
+            "- **Discovers Markdown**: Finds documentation files.\n"
+            "- **Copies assets**: Preserves images.\n"
+            ":::\n",
+            {},
+        )
+
+        self.assertIn('<section class="card-panel">', rendered)
+        self.assertIn('<h2 class="card-panel-title">What it does</h2>', rendered)
+        self.assertIn('<div class="card-grid card-grid-2">', rendered)
+        self.assertIn("<h3>Discovers Markdown</h3>", rendered)
+        self.assertIn("<p>Finds documentation files.</p>", rendered)
 
     def test_discover_export_documents_uses_deterministic_directory_order(self) -> None:
         with tempfile.TemporaryDirectory(prefix="mkpages-export-order-") as tempdir:
@@ -572,6 +588,15 @@ class GenerationTests(unittest.TestCase):
         site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
         self.assertIn("--bg: #0d1117;", site_css)
 
+    def test_gridline_theme_can_be_selected(self) -> None:
+        (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
+
+        generate_site(self.content_root, self.output_dir, explicit_theme="gridline")
+
+        site_css = (self.output_dir / "assets" / "site.css").read_text(encoding="utf-8")
+        self.assertIn("--bg: #161d27;", site_css)
+        self.assertIn("body::before", site_css)
+
     def test_invalid_theme_name_mentions_bundled_choices(self) -> None:
         (self.content_root / "index.md").write_text("# Home\n", encoding="utf-8")
 
@@ -579,7 +604,7 @@ class GenerationTests(unittest.TestCase):
             generate_site(self.content_root, self.output_dir, explicit_theme="nope")
 
         self.assertIn(
-            "Built-in themes: dark, default, developer, matrix, minimal, pulsar, retro",
+            "Built-in themes: dark, default, developer, gridline, matrix, minimal, pulsar, retro",
             str(ctx.exception),
         )
 
