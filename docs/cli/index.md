@@ -57,6 +57,7 @@ Bundled themes:
 - `default`
 - `dark`
 - `developer`
+- `gridline`
 - `matrix`
 - `minimal`
 - `pulsar`

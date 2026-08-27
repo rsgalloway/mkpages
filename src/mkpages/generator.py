@@ -32,6 +32,7 @@ BUNDLED_THEMES = {
     "default": "themes/default.css",
     "dark": "themes/dark.css",
     "developer": "themes/developer.css",
+    "gridline": "themes/gridline.css",
     "matrix": "themes/matrix.css",
     "minimal": "themes/minimal.css",
     "pulsar": "themes/pulsar.css",
@@ -41,6 +42,7 @@ THEME_CARD_TEMPLATES = {
     "default": "default",
     "dark": "dark",
     "developer": "dark",
+    "gridline": "dark",
     "matrix": "dark",
     "minimal": "default",
     "pulsar": "dark",
@@ -64,7 +66,10 @@ CARDS_DIRECTIVE_RE = re.compile(
     r"^:::(?P<name>cards)(?P<args>[^\n]*)\n(?P<body>.*?)^:::\s*$",
     re.MULTILINE | re.DOTALL,
 )
-DIRECTIVE_ARG_RE = re.compile(r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)=(?P<value>\S+)")
+DIRECTIVE_ARG_RE = re.compile(r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)=(?P<value>\"[^\"]*\"|'[^']*'|\S+)")
+STATIC_CARD_ITEM_RE = re.compile(
+    r"^\s*[-*]\s+(?:\*\*(?P<title>.+?)\*\*:?\s*)?(?P<description>.*?)\s*$"
+)
 
 
 class MkpagesError(RuntimeError):
@@ -1279,7 +1284,7 @@ def expand_directives(content: str, content_index: dict[str, tuple[ContentEntry,
         if name != "cards":
             return match.group(0)
         args = parse_directive_args(match.group("args"))
-        return render_cards_directive(args, content_index)
+        return render_cards_directive(args, match.group("body"), content_index)
 
     return CARDS_DIRECTIVE_RE.sub(replace, content)
 
@@ -1292,42 +1297,76 @@ def parse_directive_args(raw_args: str) -> dict[str, str]:
 
 
 def render_cards_directive(
-    args: dict[str, str], content_index: dict[str, tuple[ContentEntry, ...]]
+    args: dict[str, str], body: str, content_index: dict[str, tuple[ContentEntry, ...]]
 ) -> str:
-    """Render a simple cards grid from indexed content."""
+    """Render a card grid from indexed content or a Markdown list."""
     source = args.get("source", "").strip().strip("\"'")
-    if not source:
-        raise MkpagesError(":::cards requires source=...")
+    entries = list(content_index.get(source, ())) if source else []
+    static_cards = parse_static_cards(body) if not source else []
+    if not source and not static_cards:
+        raise MkpagesError(":::cards requires source=... or a Markdown list of card items")
 
-    entries = list(content_index.get(source, ()))
-    if parse_bool_arg(args.get("featured")):
-        entries = [entry for entry in entries if bool(entry.metadata.get("featured"))]
+    if source:
+        if parse_bool_arg(args.get("featured")):
+            entries = [entry for entry in entries if bool(entry.metadata.get("featured"))]
 
-    limit = parse_int_arg(args.get("limit"))
-    if limit is not None:
-        entries = entries[:limit]
+        limit = parse_int_arg(args.get("limit"))
+        if limit is not None:
+            entries = entries[:limit]
 
     columns = parse_int_arg(args.get("columns")) or 2
     columns = max(1, min(columns, 4))
 
-    lines = [f'<div class="card-grid card-grid-{columns}">']
+    panel = parse_bool_arg(args.get("panel"))
+    panel_title = args.get("title", "").strip().strip("\"'")
+    lines: list[str] = []
+    if panel:
+        lines.append('<section class="card-panel">')
+        if panel_title:
+            lines.append('  <header class="card-panel-header">')
+            lines.append(f'    <h2 class="card-panel-title">{escape_html(panel_title)}</h2>')
+            lines.append("  </header>")
+    indent = "  " if panel else ""
+    lines.append(f'{indent}<div class="card-grid card-grid-{columns}">')
     for entry in entries:
         description = escape_html(entry.description)
         title = escape_html(entry.title)
         href = escape_html(entry.page.route_url)
         tags = entry.metadata.get("tags")
-        lines.append('  <article class="content-card">')
-        lines.append(f'    <h3><a href="{href}">{title}</a></h3>')
+        lines.append(f'{indent}  <article class="content-card">')
+        lines.append(f'{indent}    <h3><a href="{href}">{title}</a></h3>')
         if description:
-            lines.append(f"    <p>{description}</p>")
+            lines.append(f"{indent}    <p>{description}</p>")
         if isinstance(tags, list) and tags:
             tag_markup = " ".join(
                 f'<span class="card-tag">{escape_html(str(tag))}</span>' for tag in tags[:3]
             )
-            lines.append(f'    <div class="card-tags">{tag_markup}</div>')
-        lines.append("  </article>")
-    lines.append("</div>")
+            lines.append(f'{indent}    <div class="card-tags">{tag_markup}</div>')
+        lines.append(f"{indent}  </article>")
+    for title, description in static_cards:
+        lines.append(f'{indent}  <article class="content-card">')
+        lines.append(f"{indent}    <h3>{escape_html(title)}</h3>")
+        if description:
+            lines.append(f"{indent}    <p>{escape_html(description)}</p>")
+        lines.append(f"{indent}  </article>")
+    lines.append(f"{indent}</div>")
+    if panel:
+        lines.append("</section>")
     return "\n".join(lines)
+
+
+def parse_static_cards(body: str) -> list[tuple[str, str]]:
+    """Parse list items into title and description pairs for static card grids."""
+    cards: list[tuple[str, str]] = []
+    for line in body.splitlines():
+        match = STATIC_CARD_ITEM_RE.match(line)
+        if not match:
+            continue
+        title = (match.group("title") or match.group("description")).strip()
+        description = match.group("description").strip() if match.group("title") else ""
+        if title:
+            cards.append((title, description))
+    return cards
 
 
 def parse_bool_arg(value: str | None) -> bool:

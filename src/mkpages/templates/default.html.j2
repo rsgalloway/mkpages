@@ -9,16 +9,23 @@
 [[ social_card_markup ]]
     <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
 [[ dev_reload_markup ]]
-    <script type="module">
-      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-
+    <script>
       function startMatrixRain(canvas) {
-        const context = canvas.getContext("2d");
-        if (!context) {
+        const requestFrame = window.requestAnimationFrame?.bind(window);
+        const cancelFrame = window.cancelAnimationFrame?.bind(window);
+        if (!requestFrame || !cancelFrame) {
+          console.warn("mkpages: Matrix rain is unavailable because animation frames are not supported.");
           return;
         }
 
-        const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const context = canvas.getContext("2d");
+        if (!context) {
+          console.warn("mkpages: Matrix rain is unavailable because Canvas 2D is not supported.");
+          return;
+        }
+
+        const motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+        const prefersReducedMotion = () => motionQuery?.matches ?? false;
         const glyphs = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const fontSize = 18;
         let columns = 0;
@@ -40,12 +47,12 @@
         };
 
         const draw = (timestamp) => {
-          if (motionQuery.matches) {
+          if (prefersReducedMotion()) {
             context.clearRect(0, 0, canvas.width, canvas.height);
             return;
           }
           if (timestamp - lastFrame < 48) {
-            animationFrameId = window.requestAnimationFrame(draw);
+            animationFrameId = requestFrame(draw);
             return;
           }
           lastFrame = timestamp;
@@ -71,26 +78,46 @@
             }
           }
 
-          animationFrameId = window.requestAnimationFrame(draw);
+          animationFrameId = requestFrame(draw);
         };
 
         resize();
         context.fillStyle = "rgba(1, 4, 2, 1)";
         context.fillRect(0, 0, canvas.width, canvas.height);
-        animationFrameId = window.requestAnimationFrame(draw);
+        animationFrameId = requestFrame(draw);
 
         window.addEventListener("resize", resize, { passive: true });
-        motionQuery.addEventListener("change", () => {
-          if (motionQuery.matches) {
-            window.cancelAnimationFrame(animationFrameId);
+        const handleMotionChange = () => {
+          if (prefersReducedMotion()) {
+            cancelFrame(animationFrameId);
             context.clearRect(0, 0, canvas.width, canvas.height);
           } else {
             resize();
             lastFrame = 0;
-            animationFrameId = window.requestAnimationFrame(draw);
+            animationFrameId = requestFrame(draw);
           }
-        });
+        };
+        if (motionQuery?.addEventListener) {
+          motionQuery.addEventListener("change", handleMotionChange);
+        } else {
+          motionQuery?.addListener?.(handleMotionChange);
+        }
       }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const themeCanvas = document.getElementById("theme-canvas");
+        const matrixEnabled =
+          themeCanvas instanceof HTMLCanvasElement &&
+          getComputedStyle(document.body).getPropertyValue("--matrix-rain").trim() === "on";
+        if (matrixEnabled) {
+          startMatrixRain(themeCanvas);
+        } else if (themeCanvas) {
+          themeCanvas.remove();
+        }
+      });
+    </script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
 
       document.addEventListener("DOMContentLoaded", async () => {
         const previewToken = window.__MKPAGES_PREVIEW_TOKEN__;
@@ -166,16 +193,6 @@
             titleColor: mermaidTitle,
           },
         });
-
-        const themeCanvas = document.getElementById("theme-canvas");
-        const matrixEnabled =
-          themeCanvas instanceof HTMLCanvasElement &&
-          getComputedStyle(document.body).getPropertyValue("--matrix-rain").trim() === "on";
-        if (matrixEnabled) {
-          startMatrixRain(themeCanvas);
-        } else if (themeCanvas) {
-          themeCanvas.remove();
-        }
 
         const mermaidBlocks = [];
         const mermaidCodeBlocks = document.querySelectorAll(".site-main pre");

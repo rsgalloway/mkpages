@@ -350,6 +350,11 @@ table {
   margin: 0;
 }
 
+.card-panel { margin: 1.4rem 0; overflow: hidden; background: var(--panel); border: 1px solid var(--border); }
+.card-panel-header { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
+.card-panel-title { margin: 0; color: var(--text); font-size: 1rem; }
+.card-panel .card-grid { margin: 0; padding: 1rem; }
+
 .card-tags {
   display: flex;
   flex-wrap: wrap;
